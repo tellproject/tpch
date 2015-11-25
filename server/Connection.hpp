@@ -28,7 +28,7 @@
 
 #include <telldb/TellDB.hpp>
 
-namespace tpcc {
+namespace tpch {
 
 class CommandImpl;
 
@@ -36,11 +36,11 @@ class Connection {
     boost::asio::ip::tcp::socket mSocket;
     std::unique_ptr<CommandImpl> mImpl;
 public:
-    Connection(boost::asio::io_service& service, tell::db::ClientManager<void>& clientManager, int16_t numWarehouses);
+    Connection(boost::asio::io_service& service, tell::db::ClientManager<void>& clientManager);
     ~Connection();
     decltype(mSocket)& socket() { return mSocket; }
     void run();
 };
 
-} // namespace tpcc
+} // namespace tpch
 

@@ -35,17 +35,16 @@ using namespace boost::asio;
 
 void accept(boost::asio::io_service &service,
         boost::asio::ip::tcp::acceptor &a,
-        tell::db::ClientManager<void>& clientManager,
-        int16_t numWarehouses) {
-    auto conn = new tpcc::Connection(service, clientManager, numWarehouses);
-    a.async_accept(conn->socket(), [conn, &service, &a, &clientManager, numWarehouses](const boost::system::error_code &err) {
+        tell::db::ClientManager<void>& clientManager) {
+    auto conn = new tpch::Connection(service, clientManager);
+    a.async_accept(conn->socket(), [conn, &service, &a, &clientManager](const boost::system::error_code &err) {
         if (err) {
             delete conn;
             LOG_ERROR(err.message());
             return;
         }
         conn->run();
-        accept(service, a, clientManager, numWarehouses);
+        accept(service, a, clientManager);
     });
 }
 
@@ -57,15 +56,13 @@ int main(int argc, const char** argv) {
     crossbow::string commitManager;
     crossbow::string storageNodes;
     tell::store::ClientConfig config;
-    int16_t numWarehouses = 0;
-    auto opts = create_options("tpcc_server",
+    auto opts = create_options("tpch_server",
             value<'h'>("help", &help, tag::description{"print help"}),
             value<'H'>("host", &host, tag::description{"Host to bind to"}),
             value<'p'>("port", &port, tag::description{"Port to bind to"}),
             value<'l'>("log-level", &logLevel, tag::description{"The log level"}),
             value<'c'>("commit-manager", &commitManager, tag::description{"Address to the commit manager"}),
             value<'s'>("storage-nodes", &storageNodes, tag::description{"Semicolon-separated list of storage node addresses"}),
-            value<'W'>("num-warehouses", &numWarehouses, tag::description{"Number of warehouses"}),
             value<-1>("network-threads", &config.numNetworkThreads, tag::ignore_short<true>{})
             );
     try {
@@ -78,10 +75,6 @@ int main(int argc, const char** argv) {
     if (help) {
         print_help(std::cout, opts);
         return 0;
-    }
-    if (numWarehouses == 0) {
-        std::cerr << "Number of warehouses needs to be set" << std::endl;
-        return 1;
     }
 
     crossbow::allocator::init();
@@ -123,7 +116,7 @@ int main(int argc, const char** argv) {
         }
         a.listen();
         // we do not need to delete this object, it will delete itself
-        accept(service, a, clientManager, numWarehouses);
+        accept(service, a, clientManager);
         service.run();
     } catch (std::exception& e) {
         std::cerr << e.what() << std::endl;

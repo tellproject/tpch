@@ -56,240 +56,31 @@
 
 #define SWITCH_CASE(Name, Param, t) SWITCH_CASE_IMPL(Name, Param, (BOOST_PP_TUPLE_SIZE(t), t))
 
-namespace tpcc {
+namespace tpch {
 
-#define COMMANDS (POPULATE_DIM_TABLES, POPULATE_WAREHOUSE, CREATE_SCHEMA, NEW_ORDER, PAYMENT, ORDER_STATUS, DELIVERY, STOCK_LEVEL, EXIT)
+#define COMMANDS (CREATE_SCHEMA, POPULATE_DB, EXIT)
 
 GEN_COMMANDS(Command, COMMANDS);
-
-//enum class Command {
-//    POPULATE_WAREHOUSE = 1,
-//    CREATE_SCHEMA,
-//    NEW_ORDER,
-//    PAYMENT
-//};
 
 template<Command C>
 struct Signature;
 
 template<>
-struct Signature<Command::POPULATE_WAREHOUSE> {
-    using result = std::tuple<bool, crossbow::string>;
-    using arguments = std::tuple<int16_t, bool>;    //warehouse-id, 0/1: whether or not to populate with CH-Tables
-};
-
-template<>
-struct Signature<Command::POPULATE_DIM_TABLES> {
-    using result = std::tuple<bool, crossbow::string>;
-    using arguments = bool;  // 0: normal TPCC (items table), 1: CHBenchmark (including Suppliers, region, and nation tables)
-};
-
-template<>
 struct Signature<Command::CREATE_SCHEMA> {
     using result = std::tuple<bool, crossbow::string>;
-    using arguments = bool;  // 0: normal TPCC, 1: CHBenchmark (including Suppliers, region, and nation tables)
+    using arguments = void;
+};
+
+template<>
+struct Signature<Command::POPULATE_DB> {
+    using result = std::tuple<bool, crossbow::string>;
+    using arguments = double;   // scaling factor
 };
 
 template<>
 struct Signature<Command::EXIT> {
     using result = void;
     using arguments = void;
-};
-
-struct NewOrderIn {
-    int16_t w_id;
-    int16_t d_id;
-    int32_t c_id;
-};
-
-struct NewOrderResult {
-    using is_serializable = crossbow::is_serializable;
-    struct OrderLine {
-        using is_serializable = crossbow::is_serializable;
-        int16_t ol_supply_w_id;
-        int32_t ol_i_id;
-        crossbow::string i_name;
-        int16_t ol_quantity;
-        int32_t s_quantity;
-        char brand_generic;
-        int32_t i_price;
-        int32_t ol_amount;
-
-        template<class Archiver>
-        void operator&(Archiver& ar) {
-            ar & ol_supply_w_id;
-            ar & ol_i_id;
-            ar & i_name;
-            ar & ol_quantity;
-            ar & s_quantity;
-            ar & brand_generic;
-            ar & i_price;
-            ar & ol_amount;
-        }
-    };
-    bool success = true;
-    crossbow::string error;
-    int32_t o_id;
-    int16_t o_ol_cnt;
-    crossbow::string c_last;
-    crossbow::string c_credit;
-    int32_t c_discount;
-    int32_t w_tax;
-    int32_t d_tax;
-    int64_t o_entry_d;
-    int32_t total_amount;
-    std::vector<OrderLine> lines;
-
-    template<class Archiver>
-    void operator&(Archiver& ar) {
-        ar & success;
-        ar & error;
-        ar & o_id;
-        ar & o_ol_cnt;
-        ar & c_last;
-        ar & c_credit;
-        ar & c_discount;
-        ar & w_tax;
-        ar & d_tax;
-        ar & o_entry_d;
-        ar & total_amount;
-        ar & lines;
-    }
-};
-
-template<>
-struct Signature<Command::NEW_ORDER> {
-    using result = NewOrderResult;
-    using arguments = NewOrderIn;
-};
-
-struct PaymentIn {
-    using is_serializable = crossbow::is_serializable;
-    bool selectByLastName;
-    int16_t w_id;
-    int16_t d_id;
-    int32_t c_id;
-    int16_t c_w_id;
-    int16_t c_d_id;
-    crossbow::string c_last;
-    int32_t h_amount;
-
-    template<class Archiver>
-    void operator&(Archiver& ar) {
-        ar & selectByLastName;
-        ar & w_id;
-        ar & d_id;
-        ar & c_id;
-        ar & c_w_id;
-        ar & c_d_id;
-        ar & c_last;
-        ar & h_amount;
-    }
-};
-
-struct PaymentResult {
-    using is_serializable = crossbow::is_serializable;
-    bool success = true;
-    crossbow::string error;
-
-    template<class Archiver>
-    void operator&(Archiver& ar) {
-        ar & success;
-        ar & error;
-    }
-};
-
-template<>
-struct Signature<Command::PAYMENT> {
-    using result = PaymentResult;
-    using arguments = PaymentIn;
-};
-
-struct OrderStatusIn {
-    using is_serializable = crossbow::is_serializable;
-    bool selectByLastName;
-    int16_t w_id;
-    int16_t d_id;
-    int32_t c_id;
-    crossbow::string c_last;
-
-    template<class A>
-    void operator&(A& ar) {
-        ar & selectByLastName;
-        ar & w_id;
-        ar & d_id;
-        ar & c_id;
-        ar & c_last;
-    }
-};
-
-struct OrderStatusResult {
-    using is_serializable = crossbow::is_serializable;
-    bool success;
-    crossbow::string error;
-
-    template<class A>
-    void operator&(A& ar) {
-        ar & success;
-        ar & error;
-    }
-};
-
-template<>
-struct Signature<Command::ORDER_STATUS> {
-    using arguments = OrderStatusIn;
-    using result = OrderStatusResult;
-};
-
-struct DeliveryIn {
-    int16_t w_id;
-    int16_t o_carrier_id;
-};
-
-struct DeliveryResult {
-    using is_serializable = crossbow::is_serializable;
-    bool success;
-    crossbow::string error;
-    int32_t low_stock;
-
-    template<class A>
-    void operator& (A& ar) {
-        ar & success;
-        ar & error;
-        ar & low_stock;
-    }
-};
-
-template<>
-struct Signature<Command::DELIVERY> {
-    using arguments = DeliveryIn;
-    using result = DeliveryResult;
-};
-
-struct StockLevelIn {
-    int16_t w_id;
-    int16_t d_id;
-    int32_t threshold;
-};
-
-struct StockLevelResult {
-    using is_serializable = crossbow::is_serializable;
-    bool success;
-    crossbow::string error;
-    int32_t low_stock;
-
-    template<class A>
-    void operator& (A& ar) {
-        ar & success;
-        ar & error;
-        ar & low_stock;
-    }
-};
-
-template<>
-struct Signature<Command::STOCK_LEVEL> {
-    using arguments = StockLevelIn;
-    using result = StockLevelResult;
 };
 
 namespace impl {
@@ -555,5 +346,5 @@ private:
 
 } // namespace server
 
-} // namespace tpcc
+} // namespace tpch
 

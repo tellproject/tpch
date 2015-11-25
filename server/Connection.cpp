@@ -23,29 +23,24 @@
 #include "Connection.hpp"
 #include "CreateSchema.hpp"
 #include "Populate.hpp"
-#include "Transactions.hpp"
-
 #include <telldb/Transaction.hpp>
 
 using namespace boost::asio;
 
-namespace tpcc {
+namespace tpch {
 
 class CommandImpl {
     server::Server<CommandImpl> mServer;
     boost::asio::io_service& mService;
     tell::db::ClientManager<void>& mClientManager;
     std::unique_ptr<tell::db::TransactionFiber<void>> mFiber;
-    Transactions mTransactions;
 public:
     CommandImpl(boost::asio::ip::tcp::socket& socket,
             boost::asio::io_service& service,
-            tell::db::ClientManager<void>& clientManager,
-            int16_t numWarehouses)
+            tell::db::ClientManager<void>& clientManager)
         : mServer(*this, socket)
         , mService(service)
         , mClientManager(clientManager)
-        , mTransactions(numWarehouses)
     {}
 
     void run() {
@@ -61,12 +56,12 @@ public:
 
     template<Command C, class Callback>
     typename std::enable_if<C == Command::CREATE_SCHEMA, void>::type
-    execute(bool args, const Callback& callback) {
-        auto transaction = [this, args, callback](tell::db::Transaction& tx){
+    execute(const Callback& callback) {
+        auto transaction = [this, callback](tell::db::Transaction& tx){
             bool success;
             crossbow::string msg;
             try {
-                createSchema(tx, args);
+                createSchema(tx);
                 tx.commit();
                 success = true;
             } catch (std::exception& ex) {
@@ -84,15 +79,14 @@ public:
     }
 
     template<Command C, class Callback>
-    typename std::enable_if<C == Command::POPULATE_WAREHOUSE, void>::type
-    execute(std::tuple<int16_t, bool> args, const Callback& callback) {
+    typename std::enable_if<C == Command::POPULATE_DB, void>::type
+    execute(double args, const Callback& callback) {
         auto transaction = [this, args, callback](tell::db::Transaction& tx) {
             bool success;
             crossbow::string msg;
             try {
-                auto counter = tx.getCounter("history_counter");
                 Populator populator;
-                populator.populateWarehouse(tx, counter, std::get<0>(args), std::get<1>(args));
+                populator.populateAll(tx, args);
                 tx.commit();
                 success = true;
             } catch (std::exception& ex) {
@@ -107,108 +101,12 @@ public:
             });
         };
         mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
-    }
-
-    template<Command C, class Callback>
-    typename std::enable_if<C == Command::POPULATE_DIM_TABLES, void>::type
-    execute(bool args, const Callback& callback) {
-        auto transaction = [this, args, callback](tell::db::Transaction& tx) {
-            bool success;
-            crossbow::string msg;
-            try {
-                Populator populator;
-                populator.populateDimTables(tx, args);
-                tx.commit();
-                success = true;
-            } catch (std::exception& ex) {
-                tx.rollback();
-                success = false;
-                msg = ex.what();
-            }
-            mService.post([this, success, msg, callback](){
-                mFiber->wait();
-                mFiber.reset(nullptr);
-                callback(std::make_pair(success, msg));
-            });
-        };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
-    }
-
-    template<Command C, class Callback>
-    typename std::enable_if<C == Command::NEW_ORDER, void>::type
-    execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        auto transaction = [this, args, callback](tell::db::Transaction& tx) {
-            typename Signature<C>::result res = mTransactions.newOrderTransaction(tx, args);
-            mService.post([this, res, callback]() {
-                mFiber->wait();
-                mFiber.reset(nullptr);
-                callback(res);
-            });
-        };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
-    }
-
-    template<Command C, class Callback>
-    typename std::enable_if<C == Command::PAYMENT, void>::type
-    execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        auto transaction = [this, args, callback](tell::db::Transaction& tx) {
-            typename Signature<C>::result res = mTransactions.payment(tx, args);
-            mService.post([this, res, callback]() {
-                mFiber->wait();
-                mFiber.reset(nullptr);
-                callback(res);
-            });
-        };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
-    }
-
-    template<Command C, class Callback>
-    typename std::enable_if<C == Command::ORDER_STATUS, void>::type
-    execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        auto transaction = [this, args, callback](tell::db::Transaction& tx) {
-            typename Signature<C>::result res = mTransactions.orderStatus(tx, args);
-            mService.post([this, res, callback]() {
-                mFiber->wait();
-                mFiber.reset(nullptr);
-                callback(res);
-            });
-        };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
-    }
-
-    template<Command C, class Callback>
-    typename std::enable_if<C == Command::DELIVERY, void>::type
-    execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        auto transaction = [this, args, callback](tell::db::Transaction& tx) {
-            typename Signature<C>::result res = mTransactions.delivery(tx, args);
-            mService.post([this, res, callback]() {
-                mFiber->wait();
-                mFiber.reset(nullptr);
-                callback(res);
-            });
-        };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
-    }
-
-    template<Command C, class Callback>
-    typename std::enable_if<C == Command::STOCK_LEVEL, void>::type
-    execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        auto transaction = [this, args, callback](tell::db::Transaction& tx) {
-            typename Signature<C>::result res = mTransactions.stockLevel(tx, args);
-            mService.post([this, res, callback]() {
-                mFiber->wait();
-                mFiber.reset(nullptr);
-                callback(res);
-            });
-        };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction,
-                        tell::store::TransactionType::READ_ONLY)));
     }
 };
 
-Connection::Connection(boost::asio::io_service& service, tell::db::ClientManager<void>& clientManager, int16_t numWarehouses)
+Connection::Connection(boost::asio::io_service& service, tell::db::ClientManager<void>& clientManager)
     : mSocket(service)
-    , mImpl(new CommandImpl(mSocket, service, clientManager, numWarehouses))
+    , mImpl(new CommandImpl(mSocket, service, clientManager))
 {}
 
 Connection::~Connection() = default;
@@ -217,5 +115,5 @@ void Connection::run() {
     mImpl->run();
 }
 
-} // namespace tpcc
+} // namespace tpch
 

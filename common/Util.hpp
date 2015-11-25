@@ -50,59 +50,11 @@ struct equal_to<std::pair<int16_t, int16_t>> {
 
 }
 
-namespace tpcc {
+namespace tpch {
 
 // splitting strings
 extern std::vector<std::string> split(const std::string& str, const char delim);
 
-// Stuff for generating random input
-class Random_t {
-public:
-    using RandomDevice = std::mt19937;
-private:
-    friend struct crossbow::create_static<Random_t>;
-    RandomDevice mRandomDevice;
-public: // Construction
-    Random_t();
-public:
-    crossbow::string astring(int x, int y);
-    crossbow::string nstring(unsigned x, unsigned y);
-    crossbow::string cLastName(int rNum);
-    crossbow::string zipCode();
-    RandomDevice& randomDevice() { return mRandomDevice; }
-    template<class I>
-    I randomWithin(I lower, I upper) {
-        std::uniform_int_distribution<I> dist(lower, upper);
-        return dist(mRandomDevice);
-    }
-
-    template<typename Int>
-    Int random(Int lower, Int upper)
-    {
-        std::uniform_int_distribution<Int> dist(lower, upper);
-        return dist(mRandomDevice);
-    }
-
-    template<typename Int>
-    Int NURand(Int A, Int x, Int y)
-    {
-        //constexpr int A = y < 1000 ? 255: (y <= 3000 ? 1023 : 8191);
-        constexpr int C = 0;
-        return (((random<Int>(0,A) | random<Int>(x,y)) + C) % (y - x + 1)) + x;
-    }
-};
-
 int64_t now();
 
 }
-
-namespace crossbow {
-extern template class singleton<tpcc::Random_t, create_static<tpcc::Random_t>, default_lifetime<tpcc::Random_t>>;
-}
-
-namespace tpcc {
-
-using Random = crossbow::singleton<Random_t, crossbow::create_static<Random_t>, crossbow::default_lifetime<Random_t>>;
-
-}
-
