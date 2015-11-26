@@ -29,10 +29,133 @@ using namespace tell;
 
 namespace {
 
+void createRegion(db::Transaction& transaction) {
+    // Primary key: (r_regionkey)
+    //              ( 2 b )
+    store::Schema schema(store::TableType::TRANSACTIONAL);  // TODO: change to NON_TRANSACTIONAL once it is supported properly
+    schema.addField(store::FieldType::SMALLINT, "r_regionkey", true);
+    schema.addField(store::FieldType::TEXT, "r_name", true);
+    schema.addField(store::FieldType::TEXT, "r_comment", true);
+    transaction.createTable("region", schema);
+}
+
+void createNation(db::Transaction& transaction) {
+    // Primary key: (r_nationkey)
+    //              ( 2 b )
+    store::Schema schema(store::TableType::TRANSACTIONAL);  // TODO: change to NON_TRANSACTIONAL once it is supported properly
+    schema.addField(store::FieldType::SMALLINT, "n_nationkey", true);
+    schema.addField(store::FieldType::TEXT, "n_name", true);
+    schema.addField(store::FieldType::SMALLINT, "n_regionkey", true);
+    schema.addField(store::FieldType::TEXT, "n_comment", true);
+    transaction.createTable("nation", schema);
+}
+
+void createPart(db::Transaction& transaction) {
+    // Primary key: (p_partkey)
+    //              ( 4 b )
+    store::Schema schema(store::TableType::TRANSACTIONAL);  // TODO: change to NON_TRANSACTIONAL once it is supported properly
+    schema.addField(store::FieldType::INT, "p_partkey", true);
+    schema.addField(store::FieldType::TEXT, "p_name", true);
+    schema.addField(store::FieldType::TEXT, "p_mfgr", true);
+    schema.addField(store::FieldType::TEXT, "p_brand", true);
+    schema.addField(store::FieldType::TEXT, "p_type", true);
+    schema.addField(store::FieldType::INT, "p_size", true);
+    schema.addField(store::FieldType::TEXT, "p_container", true);
+    schema.addField(store::FieldType::BIGINT, "p_retailprice", true);  //numeric (15,2)
+    schema.addField(store::FieldType::TEXT, "p_comment", true);
+    transaction.createTable("part", schema);
+}
+
+void createSupplier(db::Transaction& transaction) {
+    // Primary key: (s_suppkey)
+    //              ( 4 b )
+    store::Schema schema(store::TableType::TRANSACTIONAL);  // TODO: change to NON_TRANSACTIONAL once it is supported properly
+    schema.addField(store::FieldType::INT, "s_suppkey", true);
+    schema.addField(store::FieldType::TEXT, "s_name", true);
+    schema.addField(store::FieldType::TEXT, "s_address", true);
+    schema.addField(store::FieldType::SMALLINT, "s_nationkey", true);
+    schema.addField(store::FieldType::TEXT, "s_phone", true);
+    schema.addField(store::FieldType::BIGINT, "s_acctbal", true);  //numeric (15,2)
+    schema.addField(store::FieldType::TEXT, "s_comment", true);
+    transaction.createTable("supplier", schema);
+}
+
+void createPartSupp(db::Transaction& transaction) {
+    // Primary key: (ps_partkey, ps_suppkey)
+    //              ( 4 b ,     4 b )
+    store::Schema schema(store::TableType::TRANSACTIONAL);  // TODO: change to NON_TRANSACTIONAL once it is supported properly
+    schema.addField(store::FieldType::INT, "ps_partkey", true);
+    schema.addField(store::FieldType::INT, "ps_suppkey", true);
+    schema.addField(store::FieldType::INT, "ps_availqty", true);
+    schema.addField(store::FieldType::BIGINT, "ps_supplycost", true);  //numeric (15,2)
+    schema.addField(store::FieldType::TEXT, "ps_comment", true);
+    transaction.createTable("partsupp", schema);
+}
+
+void createCustomer(db::Transaction& transaction) {
+    // Primary key: (c_custkey)
+    //              ( 4 b )
+    store::Schema schema(store::TableType::TRANSACTIONAL);
+    schema.addField(store::FieldType::INT, "c_custkey", true);
+    schema.addField(store::FieldType::TEXT, "c_name", true);
+    schema.addField(store::FieldType::TEXT, "c_address", true);
+    schema.addField(store::FieldType::SMALLINT, "c_nationkey", true);
+    schema.addField(store::FieldType::TEXT, "c_phone", true);
+    schema.addField(store::FieldType::BIGINT, "c_acctbal", true);       //numeric (15,2)
+    schema.addField(store::FieldType::TEXT, "c_mktsegment", true);
+    schema.addField(store::FieldType::TEXT, "c_comment", true);
+    transaction.createTable("customer", schema);
+}
+
+void createOrders(db::Transaction& transaction) {
+    // Primary key: (o_orderkey)
+    //              ( 4 b )
+    store::Schema schema(store::TableType::TRANSACTIONAL);
+    schema.addField(store::FieldType::INT, "o_orderkey", true);
+    schema.addField(store::FieldType::INT, "o_custkey", true);
+    schema.addField(store::FieldType::SMALLINT, "o_orderstatus", true);    // char (1)
+    schema.addField(store::FieldType::BIGINT, "o_totalprice", true);       //numeric (15,2)
+    schema.addField(store::FieldType::BIGINT, "o_orderdate", true);        //datetime
+    schema.addField(store::FieldType::TEXT, "o_orderpriority", true);
+    schema.addField(store::FieldType::TEXT, "o_clerk", true);
+    schema.addField(store::FieldType::INT, "o_shippriority", true);
+    schema.addField(store::FieldType::TEXT, "o_comment", true);
+    transaction.createTable("orders", schema);
+}
+
+void createLineItems(db::Transaction& transaction) {
+    // Primary key: (l_orderkey, l_linenumber)
+    //              ( 4 b ,     4 b )
+    store::Schema schema(store::TableType::TRANSACTIONAL);
+    schema.addField(store::FieldType::INT, "l_orderkey", true);
+    schema.addField(store::FieldType::INT, "l_partkey", true);
+    schema.addField(store::FieldType::INT, "l_suppkey", true);
+    schema.addField(store::FieldType::INT, "l_linenumber", true);
+    schema.addField(store::FieldType::BIGINT, "l_quantity", true);        //numeric (15,2)
+    schema.addField(store::FieldType::BIGINT, "l_extendedprice", true);   //numeric (15,2)
+    schema.addField(store::FieldType::BIGINT, "l_discount", true);        //numeric (15,2)
+    schema.addField(store::FieldType::BIGINT, "l_tax", true);             //numeric (15,2)
+    schema.addField(store::FieldType::SMALLINT, "l_returnflag", true);    // char (1)
+    schema.addField(store::FieldType::SMALLINT, "l_linestatus", true);    // char (1)
+    schema.addField(store::FieldType::BIGINT, "l_shipdate", true);        //datetime
+    schema.addField(store::FieldType::BIGINT, "l_commitdate", true);        //datetime
+    schema.addField(store::FieldType::BIGINT, "l_receiptdate", true);        //datetime
+    schema.addField(store::FieldType::TEXT, "l_shipinstruct", true);
+    schema.addField(store::FieldType::TEXT, "l_shipmode", true);
+    schema.addField(store::FieldType::TEXT, "l_comment", true);
+    transaction.createTable("lineitem", schema);
+}
+
 } // anonymouse namespace
 
 void createSchema(tell::db::Transaction& transaction) {
-
+    createRegion(transaction);
+    createNation(transaction);
+    createPart(transaction);
+    createSupplier(transaction);
+    createPartSupp(transaction);
+    createCustomer(transaction);
+    createOrders(transaction);
 }
 
 } // namespace tpch

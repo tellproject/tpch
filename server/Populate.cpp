@@ -30,9 +30,55 @@ using namespace tell::db;
 
 namespace tpch {
 
+void Populator::populateRegions(Transaction &transaction)
+{
+    auto tIdFuture   = transaction.openTable("region");
+    auto table       = tIdFuture.get();
+    std::string line;
+    std::ifstream infile("ch-tables/region.tbl");
+    while (std::getline(infile, line)) {
+        auto items = tpcc::split(line, '|');
+        if (items.size() != 3) {
+            LOG_ERROR("region file must contain of 3-tuples!");
+            return;
+        }
+        int16_t intKey = static_cast<int16_t>(std::stoi(items[0]));
+        tell::db::key_t key = tell::db::key_t{static_cast<uint64_t>(intKey)};
+        transaction.insert(table, key, {{
+            {"r_regionkey", intKey},
+            {"r_name", crossbow::string(items[1])},
+            {"r_comment", crossbow::string(items[2])}
+        }});
+    }
+}
+
+void Populator::populateNations(Transaction &transaction)
+{
+    auto tIdFuture   = transaction.openTable("nation");
+    auto table       = tIdFuture.get();
+    std::string line;
+    std::ifstream infile("ch-tables/nation.tbl");
+    while (std::getline(infile, line)) {
+        auto items = tpcc::split(line, '|');
+        if (items.size() != 4) {
+            LOG_ERROR("nation file must contain of 4-tuples!");
+            return;
+        }
+        int16_t intKey = static_cast<int16_t>(std::stoi(items[0]));
+        tell::db::key_t key = tell::db::key_t{static_cast<uint64_t>(intKey)};
+        transaction.insert(table, key, {{
+            {"n_nationkey", intKey},
+            {"n_name", crossbow::string(items[1])},
+            {"n_regionkey", static_cast<int16_t>(std::stoi(items[2]))},
+            {"n_comment", crossbow::string(items[3])}
+        }});
+    }
+}
+
 void Populator::populateAll(Transaction &transaction, double scalingFactor)
 {
-
+    populateRegions(transaction);
+    populateNations(transaction);
 }
 
 } // namespace tpch

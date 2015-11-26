@@ -32,6 +32,9 @@ set(CLIENT_SRC
     client/main.cpp
     client/Client.cpp)
 
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/server/ch-tables/nation.tbl ${CMAKE_CURRENT_BINARY_DIR}/ch-tables/nation.tbl COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/server/ch-tables/region.tbl ${CMAKE_CURRENT_BINARY_DIR}/ch-tables/region.tbl COPYONLY)
+
 add_executable(tpch_server ${SERVER_SRC})
 target_link_libraries(tpch_server PRIVATE tpch_common)
 

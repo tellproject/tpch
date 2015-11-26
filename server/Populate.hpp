@@ -43,7 +43,8 @@ public:
     Populator() {}
     void populateAll(tell::db::Transaction& transaction, double scalingFactor);
 private:
-
+    void populateRegions(tell::db::Transaction& transaction);
+    void populateNations(tell::db::Transaction& transaction);
 };
 
 } // namespace tpch
