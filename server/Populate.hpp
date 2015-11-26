@@ -45,6 +45,7 @@ public:
 private:
     void populateRegions(tell::db::Transaction& transaction);
     void populateNations(tell::db::Transaction& transaction);
+    void populatePart(tell::db::Transaction& transaction, double scalingFactor);
 };
 
 } // namespace tpch

@@ -26,6 +26,8 @@
 #include <chrono>
 #include <algorithm>
 
+#include "dbgen/dsstypes.h"
+
 using namespace tell::db;
 
 namespace tpch {
@@ -37,7 +39,7 @@ void Populator::populateRegions(Transaction &transaction)
     std::string line;
     std::ifstream infile("ch-tables/region.tbl");
     while (std::getline(infile, line)) {
-        auto items = tpcc::split(line, '|');
+        auto items = tpch::split(line, '|');
         if (items.size() != 3) {
             LOG_ERROR("region file must contain of 3-tuples!");
             return;
@@ -59,7 +61,7 @@ void Populator::populateNations(Transaction &transaction)
     std::string line;
     std::ifstream infile("ch-tables/nation.tbl");
     while (std::getline(infile, line)) {
-        auto items = tpcc::split(line, '|');
+        auto items = tpch::split(line, '|');
         if (items.size() != 4) {
             LOG_ERROR("nation file must contain of 4-tuples!");
             return;
@@ -73,6 +75,12 @@ void Populator::populateNations(Transaction &transaction)
             {"n_comment", crossbow::string(items[3])}
         }});
     }
+}
+
+void Populator::populatePart(Transaction &transaction, double scalingFactor)
+{
+//    part_t part;
+//    mk_part(1, &part);
 }
 
 void Populator::populateAll(Transaction &transaction, double scalingFactor)
