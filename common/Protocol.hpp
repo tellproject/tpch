@@ -58,7 +58,7 @@
 
 namespace tpch {
 
-#define COMMANDS (CREATE_SCHEMA, POPULATE_DB, EXIT)
+#define COMMANDS (CREATE_SCHEMA, POPULATE_STATIC, POPULATE_PORTION, EXIT)
 
 GEN_COMMANDS(Command, COMMANDS);
 
@@ -72,9 +72,15 @@ struct Signature<Command::CREATE_SCHEMA> {
 };
 
 template<>
-struct Signature<Command::POPULATE_DB> {
+struct Signature<Command::POPULATE_STATIC> {
     using result = std::tuple<bool, crossbow::string>;
-    using arguments = double;   // scaling factor
+    using arguments = void;
+};
+
+template<>
+struct Signature<Command::POPULATE_PORTION> {
+    using result = std::tuple<bool, crossbow::string>;
+    using arguments = std::pair<uint, float>;   //portion / scaling factor
 };
 
 template<>

@@ -374,75 +374,75 @@ gen_tbl (int tnum, DSS_HUGE start, DSS_HUGE count, long upd_num)
 
 
 
-void
-usage (void)
-{
-	fprintf (stderr, "%s\n%s\n\t%s\n%s %s\n\n",
-		"USAGE:",
-		"dbgen [-{vf}][-T {pcsoPSOL}]",
-		"[-s <scale>][-C <procs>][-S <step>]",
-		"dbgen [-v] [-O m] [-s <scale>]",
-		"[-U <updates>]");
-	fprintf (stderr, "Basic Options\n===========================\n");
-	fprintf (stderr, "-C <n> -- separate data set into <n> chunks (requires -S, default: 1)\n");
-	fprintf (stderr, "-f     -- force. Overwrite existing files\n");
-	fprintf (stderr, "-h     -- display this message\n");
-	fprintf (stderr, "-q     -- enable QUIET mode\n");
-	fprintf (stderr, "-s <n> -- set Scale Factor (SF) to  <n> (default: 1) \n");
-	fprintf (stderr, "-S <n> -- build the <n>th step of the data/update set (used with -C or -U)\n");
-	fprintf (stderr, "-U <n> -- generate <n> update sets\n");
-	fprintf (stderr, "-v     -- enable VERBOSE mode\n");
-	fprintf (stderr, "\nAdvanced Options\n===========================\n");
-	fprintf (stderr, "-b <s> -- load distributions for <s> (default: dists.dss)\n");
-    fprintf (stderr, "-d <n> -- split deletes between <n> files (requires -U)\n");
-    fprintf (stderr, "-i <n> -- split inserts between <n> files (requires -U)\n");
-	fprintf (stderr, "-T c   -- generate cutomers ONLY\n");
-	fprintf (stderr, "-T l   -- generate nation/region ONLY\n");
-	fprintf (stderr, "-T L   -- generate lineitem ONLY\n");
-	fprintf (stderr, "-T n   -- generate nation ONLY\n");
-	fprintf (stderr, "-T o   -- generate orders/lineitem ONLY\n");
-	fprintf (stderr, "-T O   -- generate orders ONLY\n");
-	fprintf (stderr, "-T p   -- generate parts/partsupp ONLY\n");
-	fprintf (stderr, "-T P   -- generate parts ONLY\n");
-	fprintf (stderr, "-T r   -- generate region ONLY\n");
-	fprintf (stderr, "-T s   -- generate suppliers ONLY\n");
-	fprintf (stderr, "-T S   -- generate partsupp ONLY\n");
-	fprintf (stderr,
-		"\nTo generate the SF=1 (1GB), validation database population, use:\n");
-	fprintf (stderr, "\tdbgen -vf -s 1\n");
-	fprintf (stderr, "\nTo generate updates for a SF=1 (1GB), use:\n");
-	fprintf (stderr, "\tdbgen -v -U 1 -s 1\n");
-}
+//void
+//usage (void)
+//{
+//	fprintf (stderr, "%s\n%s\n\t%s\n%s %s\n\n",
+//		"USAGE:",
+//		"dbgen [-{vf}][-T {pcsoPSOL}]",
+//		"[-s <scale>][-C <procs>][-S <step>]",
+//		"dbgen [-v] [-O m] [-s <scale>]",
+//		"[-U <updates>]");
+//	fprintf (stderr, "Basic Options\n===========================\n");
+//	fprintf (stderr, "-C <n> -- separate data set into <n> chunks (requires -S, default: 1)\n");
+//	fprintf (stderr, "-f     -- force. Overwrite existing files\n");
+//	fprintf (stderr, "-h     -- display this message\n");
+//	fprintf (stderr, "-q     -- enable QUIET mode\n");
+//	fprintf (stderr, "-s <n> -- set Scale Factor (SF) to  <n> (default: 1) \n");
+//	fprintf (stderr, "-S <n> -- build the <n>th step of the data/update set (used with -C or -U)\n");
+//	fprintf (stderr, "-U <n> -- generate <n> update sets\n");
+//	fprintf (stderr, "-v     -- enable VERBOSE mode\n");
+//	fprintf (stderr, "\nAdvanced Options\n===========================\n");
+//	fprintf (stderr, "-b <s> -- load distributions for <s> (default: dists.dss)\n");
+//    fprintf (stderr, "-d <n> -- split deletes between <n> files (requires -U)\n");
+//    fprintf (stderr, "-i <n> -- split inserts between <n> files (requires -U)\n");
+//	fprintf (stderr, "-T c   -- generate cutomers ONLY\n");
+//	fprintf (stderr, "-T l   -- generate nation/region ONLY\n");
+//	fprintf (stderr, "-T L   -- generate lineitem ONLY\n");
+//	fprintf (stderr, "-T n   -- generate nation ONLY\n");
+//	fprintf (stderr, "-T o   -- generate orders/lineitem ONLY\n");
+//	fprintf (stderr, "-T O   -- generate orders ONLY\n");
+//	fprintf (stderr, "-T p   -- generate parts/partsupp ONLY\n");
+//	fprintf (stderr, "-T P   -- generate parts ONLY\n");
+//	fprintf (stderr, "-T r   -- generate region ONLY\n");
+//	fprintf (stderr, "-T s   -- generate suppliers ONLY\n");
+//	fprintf (stderr, "-T S   -- generate partsupp ONLY\n");
+//	fprintf (stderr,
+//		"\nTo generate the SF=1 (1GB), validation database population, use:\n");
+//	fprintf (stderr, "\tdbgen -vf -s 1\n");
+//	fprintf (stderr, "\nTo generate updates for a SF=1 (1GB), use:\n");
+//	fprintf (stderr, "\tdbgen -v -U 1 -s 1\n");
+//}
 
-/*
-* int partial(int tbl, int s) -- generate the s-th part of the named tables data
-*/
-int
-partial (int tbl, int s)
-{
-	DSS_HUGE rowcnt;
-	DSS_HUGE extra;
+///*
+//* int partial(int tbl, int s) -- generate the s-th part of the named tables data
+//*/
+//int
+//partial (int tbl, int s)
+//{
+//	DSS_HUGE rowcnt;
+//	DSS_HUGE extra;
 	
-	if (verbose > 0)
-	{
-		fprintf (stderr, "\tStarting to load stage %d of %d for %s...",
-			s, children, tdefs[tbl].comment);
-	}
+//	if (verbose > 0)
+//	{
+//		fprintf (stderr, "\tStarting to load stage %d of %d for %s...",
+//			s, children, tdefs[tbl].comment);
+//	}
 	
-	set_files (tbl, s);
+//	set_files (tbl, s);
 	
-	rowcnt = set_state(tbl, scale, children, s, &extra);
+//	rowcnt = set_state(tbl, scale, children, s, &extra);
 
-	if (s == children)
-		gen_tbl (tbl, rowcnt * (s - 1) + 1, rowcnt + extra, upd_num);
-	else
-		gen_tbl (tbl, rowcnt * (s - 1) + 1, rowcnt, upd_num);
+//	if (s == children)
+//		gen_tbl (tbl, rowcnt * (s - 1) + 1, rowcnt + extra, upd_num);
+//	else
+//		gen_tbl (tbl, rowcnt * (s - 1) + 1, rowcnt, upd_num);
 	
-	if (verbose > 0)
-		fprintf (stderr, "done.\n");
+//	if (verbose > 0)
+//		fprintf (stderr, "done.\n");
 	
-	return (0);
-}
+//	return (0);
+//}
 
 //void
 //process_options (int count, char **vector)

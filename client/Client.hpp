@@ -41,16 +41,33 @@ struct LogEntry {
     decltype(start) end;
 };
 
+/**
+ * @brief The Client class populates the TPC-H tables. In order to
+ * not make too many inserts per transaction, the client populates
+ * the tables portion by portion where one portion consists of:
+ * 100 parts
+ * 10 suppliers
+ * 800 partsupps
+ * 150 customers
+ * 1500 orders
+ * ~6000 lineitems
+ */
 class Client {
     using Socket = boost::asio::ip::tcp::socket;
     Socket mSocket;
     client::CommandsImpl mCmds;
+    uint mportionLower;
+    uint mportionUpper;
+    float mScalingFactor;
     std::deque<LogEntry> mLog;
     decltype(Clock::now()) mEndTime;
 public:
-    Client(boost::asio::io_service& service, decltype(Clock::now()) endTime)
+    Client(boost::asio::io_service& service, uint portionLower, uint portionUpper, float scalingFactor, decltype(Clock::now()) endTime)
         : mSocket(service)
         , mCmds(mSocket)
+        , mportionLower(portionLower)
+        , mportionUpper(portionUpper)
+        , mScalingFactor(scalingFactor)
         , mEndTime(endTime)
     {}
     Socket& socket() {
@@ -63,8 +80,11 @@ public:
         return mCmds;
     }
 
+
+    void populate();
     const std::deque<LogEntry>& log() const { return mLog; }
 private:
+    void populate(uint lower, uint upper);
     template<Command C>
     void execute(const typename Signature<C>::arguments& arg);
 };

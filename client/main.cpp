@@ -41,7 +41,7 @@ using err_code = boost::system::error_code;
 int main(int argc, const char** argv) {
     bool help = false;
     bool populate = false;
-    double scalingFactor = 1.0;
+    float scalingFactor = 1.0f;
     crossbow::string host;
     std::string port("8713");
     std::string logLevel("DEBUG");
@@ -75,6 +75,11 @@ int main(int argc, const char** argv) {
         std::cerr << "No host\n";
         return 1;
     }
+    if (scalingFactor < 0.1) {
+        std::cerr << "scaling factor must be at least 0.1!\n";
+        return 1;
+    }
+
     auto startTime = tpch::Clock::now();
     auto endTime = startTime + std::chrono::seconds(time);
     crossbow::logger::logger->config.level = crossbow::logger::logLevelFromString(logLevel);
@@ -84,9 +89,11 @@ int main(int argc, const char** argv) {
         auto sumClients = hosts.size() * numClients;
         std::vector<tpch::Client> clients;
         clients.reserve(sumClients);
+        uint numPortions = 1000 * scalingFactor;
+        auto portionsPerClient = numPortions / sumClients;
         for (decltype(sumClients) i = 0; i < sumClients; ++i) {
-            if (i >= unsigned(scalingFactor)) break;
-            clients.emplace_back(service, endTime);
+            if (i >= numPortions) break;
+            clients.emplace_back(service, uint(portionsPerClient * i + 1), uint(portionsPerClient * (i + 1)), scalingFactor, endTime);
         }
         for (size_t i = 0; i < hosts.size(); ++i) {
             auto h = hosts[i];
@@ -141,7 +148,7 @@ int main(int argc, const char** argv) {
                 }
 
                 auto& cmds = clients[0].commands();
-                cmds.execute<tpch::Command::POPULATE_DB>([&clients, &scalingFactor](const err_code& ec, const std::tuple<bool, crossbow::string>& res){
+                cmds.execute<tpch::Command::POPULATE_STATIC>([&clients](const err_code& ec, const std::tuple<bool, crossbow::string>& res){
                     if (ec) {
                         LOG_ERROR(ec.message());
                         return;
@@ -150,7 +157,11 @@ int main(int argc, const char** argv) {
                         LOG_ERROR(std::get<1>(res));
                         return;
                     }
-                }, scalingFactor);
+
+                    for (auto& client : clients) {
+                        client.populate();
+                    }
+                });
             });
         } else {
 //            for (decltype(clients.size()) i = 0; i < clients.size(); ++i) {
@@ -169,8 +180,11 @@ END:
             for (const auto& e : queue) {
                 crossbow::string tName;
                 switch (e.transaction) {
-                case tpch::Command::POPULATE_DB:
-                    tName = "Populate";
+                case tpch::Command::POPULATE_PORTION:
+                    tName = "Populate portion";
+                    break;
+                case tpch::Command::POPULATE_STATIC:
+                    tName = "Populate region and nation table";
                     break;
                 case tpch::Command::CREATE_SCHEMA:
                     tName = "Schema Create";

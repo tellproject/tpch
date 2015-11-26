@@ -79,14 +79,39 @@ public:
     }
 
     template<Command C, class Callback>
-    typename std::enable_if<C == Command::POPULATE_DB, void>::type
-    execute(double args, const Callback& callback) {
+    typename std::enable_if<C == Command::POPULATE_STATIC, void>::type
+    execute(const Callback& callback) {
+        auto transaction = [this, callback](tell::db::Transaction& tx) {
+            bool success;
+            crossbow::string msg;
+            try {
+                Populator populator;
+                populator.populateStaticTables(tx);
+                tx.commit();
+                success = true;
+            } catch (std::exception& ex) {
+                tx.rollback();
+                success = false;
+                msg = ex.what();
+            }
+            mService.post([this, success, msg, callback](){
+                mFiber->wait();
+                mFiber.reset(nullptr);
+                callback(std::make_pair(success, msg));
+            });
+        };
+        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+    }
+
+    template<Command C, class Callback>
+    typename std::enable_if<C == Command::POPULATE_PORTION, void>::type
+    execute(std::pair<uint, float> args, const Callback& callback) {
         auto transaction = [this, args, callback](tell::db::Transaction& tx) {
             bool success;
             crossbow::string msg;
             try {
                 Populator populator;
-                populator.populateAll(tx, args);
+                populator.populatePortion(tx, args.first, args.second);
                 tx.commit();
                 success = true;
             } catch (std::exception& ex) {

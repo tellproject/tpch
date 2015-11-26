@@ -34,6 +34,6 @@ class Transaction;
 
 namespace tpch {
 
-void createSchema(tell::db::Transaction& transaction);
+void    createSchema(tell::db::Transaction& transaction);
 
 } // namespace tpch

@@ -40,12 +40,17 @@ namespace tpch {
 class Populator {
 
 public:
-    Populator() {}
-    void populateAll(tell::db::Transaction& transaction, double scalingFactor);
+    Populator() : mInitialized(false)
+    {}
+    void populateStaticTables(tell::db::Transaction& transaction);
+    void populatePortion(tell::db::Transaction& transaction, uint portionID, float scalingFactor);
 private:
     void populateRegions(tell::db::Transaction& transaction);
     void populateNations(tell::db::Transaction& transaction);
-    void populatePart(tell::db::Transaction& transaction, double scalingFactor);
+    void populatePartAndPartSupp(tell::db::Transaction& transaction, uint portionID);
+    void setScalingFactor(float scalingFactor);
+private:
+    bool mInitialized;
 };
 
 } // namespace tpch

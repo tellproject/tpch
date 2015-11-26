@@ -77,16 +77,80 @@ void Populator::populateNations(Transaction &transaction)
     }
 }
 
-void Populator::populatePart(Transaction &transaction, double scalingFactor)
+void Populator::populatePartAndPartSupp(Transaction &transaction, uint portionID)
 {
-//    part_t part;
-//    mk_part(1, &part);
+    auto tPartFuture        = transaction.openTable("part");
+    auto tPartSuppFuture    = transaction.openTable("partsupp");
+    auto partSuppTable      = tPartSuppFuture.get();
+    auto partTable          = tPartFuture.get();
+
+    DSS_HUGE partIndex = (portionID-1) * 200 + 1;
+    auto partEndIndex = partIndex + 200;
+
+    part_t part;
+    for (; partIndex < partEndIndex; ++partIndex) {
+        mk_part(partIndex, &part);
+        tell::db::key_t partKey = tell::db::key_t{static_cast<uint64_t>(partIndex)};
+        transaction.insert(partTable, partKey, {{
+            {"p_partkey", static_cast<int32_t>(part.partkey)},
+            {"p_name", crossbow::string(part.name)},
+            {"p_mfgr", crossbow::string(part.mfgr)},
+            {"p_brand", crossbow::string(part.brand)},
+            {"p_type", crossbow::string(part.type)},
+            {"p_size", static_cast<int32_t>(part.size)},
+            {"p_container", crossbow::string(part.container)},
+            {"p_retailprice", static_cast<int64_t>(part.retailprice)},
+            {"p_comment", crossbow::string(part.comment)}
+        }});
+        for (long snum = 0; snum < SUPP_PER_PART; ++snum) {
+            // [TODO:] continue here
+        }
+    }
 }
 
-void Populator::populateAll(Transaction &transaction, double scalingFactor)
+void Populator::setScalingFactor(float scalingFactor)
+{
+    if (!mInitialized) {
+        if (scalingFactor < MIN_SCALE)
+        {
+            int i;
+            int int_scale;
+
+            scale = 1;
+            int_scale = (int)(1000 * scalingFactor);
+            for (i = PART; i < REGION; i++)
+            {
+                tdefs[i].base = (DSS_HUGE)(int_scale * tdefs[i].base)/1000;
+                if (tdefs[i].base < 1)
+                    tdefs[i].base = 1;
+            }
+        }
+        else
+            scale = (long) scalingFactor;
+        if (scale > MAX_SCALE)
+        {
+            fprintf (stderr, "%s %5.0f %s\n\t%s\n\n",
+                "NOTE: Data generation for scale factors >",
+                MAX_SCALE,
+                "GB is still in development,",
+                "and is not yet supported.\n");
+            fprintf (stderr,
+                "Your resulting data set MAY NOT BE COMPLIANT!\n");
+        }
+        mInitialized = true;
+    }
+}
+
+void Populator::populateStaticTables(Transaction &transaction)
 {
     populateRegions(transaction);
     populateNations(transaction);
+}
+
+void Populator::populatePortion(Transaction &transaction, uint portionID, float scalingFactor)
+{
+    setScalingFactor(scalingFactor);
+    populatePartAndPartSupp(transaction, portionID);
 }
 
 } // namespace tpch
