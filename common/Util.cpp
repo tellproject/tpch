@@ -22,6 +22,10 @@
  */
 #include "Util.hpp"
 
+#include <iostream>
+#include <sstream>
+#include <chrono>
+#include "boost/date_time/posix_time/posix_time.hpp"
 namespace tpch {
 
 // splitting strings
@@ -36,10 +40,19 @@ std::vector<std::string> split(const std::string& str, const char delim) {
     return result;
 }
 
+uint64_t convertSqlDateToLong(const std::string& dateString)
+{
+    using namespace boost::posix_time;
+
+    ptime epoch = time_from_string("1970-01-01 00:00:00.000");
+    ptime other = time_from_string(dateString);
+    time_duration const diff = other - epoch;
+    return diff.total_seconds();
+}
+
 int64_t now() {
     auto now = std::chrono::system_clock::now();
     return now.time_since_epoch().count();
 }
 
 }
-

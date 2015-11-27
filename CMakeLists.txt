@@ -4,7 +4,7 @@ project(tpch)
 # Set CMake modules path
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost REQUIRED COMPONENTS system date_time)
 find_package(TellDB REQUIRED)
 find_package(Crossbow REQUIRED)
 find_package(Jemalloc REQUIRED)

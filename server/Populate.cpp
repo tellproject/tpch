@@ -34,8 +34,8 @@ namespace tpch {
 
 void Populator::populateRegions(Transaction &transaction)
 {
-    auto tIdFuture   = transaction.openTable("region");
-    auto table       = tIdFuture.get();
+    auto tFuture    = transaction.openTable("region");
+    auto table      = tFuture.get();
     std::string line;
     std::ifstream infile("ch-tables/region.tbl");
     while (std::getline(infile, line)) {
@@ -56,8 +56,8 @@ void Populator::populateRegions(Transaction &transaction)
 
 void Populator::populateNations(Transaction &transaction)
 {
-    auto tIdFuture   = transaction.openTable("nation");
-    auto table       = tIdFuture.get();
+    auto tFuture   = transaction.openTable("nation");
+    auto table     = tFuture.get();
     std::string line;
     std::ifstream infile("ch-tables/nation.tbl");
     while (std::getline(infile, line)) {
@@ -77,40 +77,10 @@ void Populator::populateNations(Transaction &transaction)
     }
 }
 
-void Populator::populatePartAndPartSupp(Transaction &transaction, uint portionID)
-{
-    auto tPartFuture        = transaction.openTable("part");
-    auto tPartSuppFuture    = transaction.openTable("partsupp");
-    auto partSuppTable      = tPartSuppFuture.get();
-    auto partTable          = tPartFuture.get();
-
-    DSS_HUGE partIndex = (portionID-1) * 200 + 1;
-    auto partEndIndex = partIndex + 200;
-
-    part_t part;
-    for (; partIndex < partEndIndex; ++partIndex) {
-        mk_part(partIndex, &part);
-        tell::db::key_t partKey = tell::db::key_t{static_cast<uint64_t>(partIndex)};
-        transaction.insert(partTable, partKey, {{
-            {"p_partkey", static_cast<int32_t>(part.partkey)},
-            {"p_name", crossbow::string(part.name)},
-            {"p_mfgr", crossbow::string(part.mfgr)},
-            {"p_brand", crossbow::string(part.brand)},
-            {"p_type", crossbow::string(part.type)},
-            {"p_size", static_cast<int32_t>(part.size)},
-            {"p_container", crossbow::string(part.container)},
-            {"p_retailprice", static_cast<int64_t>(part.retailprice)},
-            {"p_comment", crossbow::string(part.comment)}
-        }});
-        for (long snum = 0; snum < SUPP_PER_PART; ++snum) {
-            // [TODO:] continue here
-        }
-    }
-}
-
 void Populator::setScalingFactor(float scalingFactor)
 {
     if (!mInitialized) {
+        // copy-pasted from dbgen-driver
         if (scalingFactor < MIN_SCALE)
         {
             int i;
@@ -141,6 +111,148 @@ void Populator::setScalingFactor(float scalingFactor)
     }
 }
 
+void Populator::populatePartAndPartSupp(Transaction &transaction, uint portionID)
+{
+    auto tPartFuture        = transaction.openTable("part");
+    auto tPartSuppFuture    = transaction.openTable("partsupp");
+    auto partSuppTable      = tPartSuppFuture.get();
+    auto partTable          = tPartFuture.get();
+
+    DSS_HUGE partIndex = (portionID-1) * 200 + 1;
+    auto partEndIndex = partIndex + 200;
+
+    part_t part;
+    for (; partIndex < partEndIndex; ++partIndex) {
+        mk_part(partIndex, &part);
+        uint64_t keyBase = uint64_t(partIndex);
+        tell::db::key_t partKey = tell::db::key_t{keyBase};
+        transaction.insert(partTable, partKey, {{
+            {"p_partkey", static_cast<int32_t>(part.partkey)},
+            {"p_name", crossbow::string(part.name)},
+            {"p_mfgr", crossbow::string(part.mfgr)},
+            {"p_brand", crossbow::string(part.brand)},
+            {"p_type", crossbow::string(part.type)},
+            {"p_size", static_cast<int32_t>(part.size)},
+            {"p_container", crossbow::string(part.container)},
+            {"p_retailprice", static_cast<int64_t>(part.retailprice)},
+            {"p_comment", crossbow::string(part.comment)}
+        }});
+        keyBase <<= 32;
+        for (long snum = 0; snum < SUPP_PER_PART; ++snum) {
+            auto &partSupp = part.s[snum];
+            tell::db::key_t partSuppKey = tell::db::key_t{keyBase | uint64_t(partSupp.suppkey)};
+            transaction.insert(partSuppTable, partSuppKey, {{
+                {"ps_partkey", static_cast<int32_t>(partSupp.partkey)},
+                {"ps_suppkey", static_cast<int32_t>(partSupp.suppkey)},
+                {"ps_availqty", static_cast<int32_t>(partSupp.qty)},
+                {"ps_supplycost", static_cast<int64_t>(partSupp.scost)},
+                {"ps_comment", crossbow::string(partSupp.comment)}
+            }});
+        }
+    }
+}
+
+void Populator::populateSupplier(Transaction &transaction, uint portionID)
+{
+    auto tFuture    = transaction.openTable("supplier");
+    auto table      = tFuture.get();
+
+    DSS_HUGE suppIndex = (portionID-1) * 10 + 1;
+    auto suppEndIndex = suppIndex + 10;
+
+    supplier_t supp;
+    for (; suppIndex < suppEndIndex; ++suppIndex) {
+        mk_supp(suppIndex, &supp);
+        tell::db::key_t key = tell::db::key_t{uint64_t(suppIndex)};
+        transaction.insert(table, key, {{
+            {"s_suppkey", static_cast<int32_t>(supp.suppkey)},
+            {"s_name", crossbow::string(supp.name)},
+            {"s_address", crossbow::string(supp.address)},
+            {"s_nationkey", static_cast<int16_t>(supp.nation_code)},
+            {"s_phone", crossbow::string(supp.phone)},
+            {"s_acctbal", static_cast<int64_t>(supp.acctbal)},
+            {"s_comment", crossbow::string(supp.comment)}
+        }});
+    }
+}
+
+void Populator::populateCustomer(Transaction &transaction, uint portionID)
+{
+    auto tFuture    = transaction.openTable("customer");
+    auto table      = tFuture.get();
+
+    DSS_HUGE custIndex = (portionID-1) * 150 + 1;
+    auto custEndIndex = custIndex + 150;
+
+    customer_t cust;
+    for (; custIndex < custEndIndex; ++custIndex) {
+        mk_cust(custIndex, &cust);
+        tell::db::key_t key = tell::db::key_t{uint64_t(custIndex)};
+        transaction.insert(table, key, {{
+            {"c_custkey", static_cast<int32_t>(cust.custkey)},
+            {"c_name", crossbow::string(cust.name)},
+            {"c_address", crossbow::string(cust.address)},
+            {"c_nationkey", static_cast<int16_t>(cust.nation_code)},
+            {"c_phone", crossbow::string(cust.phone)},
+            {"c_acctbal", static_cast<int64_t>(cust.acctbal)},
+            {"c_mktsegment", crossbow::string(cust.mktsegment)},
+            {"c_comment", crossbow::string(cust.comment)}
+        }});
+    }
+}
+
+void Populator::populateOrdersAndLines(Transaction &transaction, uint portionID)
+{
+    auto tOrdersFuture      = transaction.openTable("orders");
+    auto tLineItemFuture    = transaction.openTable("lineitem");
+    auto lineItemTable      = tLineItemFuture.get();
+    auto ordersTable        = tOrdersFuture.get();
+
+    DSS_HUGE orderIndex = (portionID-1) * 1500 + 1;
+    auto orderEndIndex = orderIndex + 1500;
+
+    order_t ord;
+    for (; orderIndex < orderEndIndex; ++orderIndex) {
+        mk_order(orderIndex, &ord, 0);  // no updates
+        uint64_t keyBase = uint64_t(orderIndex);
+        tell::db::key_t orderKey = tell::db::key_t{keyBase};
+        transaction.insert(ordersTable, orderKey, {{
+            {"o_orderkey", static_cast<int32_t>(ord.okey)},
+            {"o_custkey", static_cast<int32_t>(ord.custkey)},
+            {"o_orderstatus", static_cast<int16_t>(ord.orderstatus)},
+            {"o_o_totalprice", static_cast<int64_t>(ord.totalprice)},
+            {"o_orderdate", static_cast<int64_t>(convertSqlDateToLong(ord.odate))},
+            {"o_orderpriority", crossbow::string(ord.opriority)},
+            {"o_clerk", crossbow::string(ord.clerk)},
+            {"o_shippriority", static_cast<int32_t>(ord.spriority)},
+            {"o_comment", crossbow::string(ord.comment)}
+        }});
+        keyBase <<= 32;
+        for (long line = 0; line < ord.lines; ++line) {
+            auto &oLine = ord.l[line];
+            tell::db::key_t oLineKey = tell::db::key_t{keyBase | uint64_t(oLine.lcnt)};
+            transaction.insert(lineItemTable, oLineKey, {{
+                {"l_orderkey", static_cast<int32_t>(oLine.okey)},
+                {"l_partkey", static_cast<int32_t>(oLine.partkey)},
+                {"l_suppkey", static_cast<int32_t>(oLine.suppkey)},
+                {"l_linenumber", static_cast<int32_t>(oLine.lcnt)},
+                {"l_quantity", static_cast<int64_t>(oLine.quantity)},
+                {"l_extendedprice", static_cast<int64_t>(oLine.eprice)},
+                {"l_discount", static_cast<int64_t>(oLine.discount)},
+                {"l_tax", static_cast<int64_t>(oLine.tax)},
+                {"l_returnflag", static_cast<int16_t>(oLine.rflag[0])},
+                {"l_linestatus", static_cast<int16_t>(oLine.lstatus[0])},
+                {"l_shipdate", static_cast<int64_t>(convertSqlDateToLong(oLine.sdate))},
+                {"l_commitdate", static_cast<int64_t>(convertSqlDateToLong(oLine.cdate))},
+                {"l_receiptdate", static_cast<int64_t>(convertSqlDateToLong(oLine.rdate))},
+                {"l_shipinstruct", crossbow::string(oLine.shipinstruct)},
+                {"l_shipmode", crossbow::string(oLine.shipmode)},
+                {"l_comment", crossbow::string(oLine.comment)}
+            }});
+        }
+    }
+}
+
 void Populator::populateStaticTables(Transaction &transaction)
 {
     populateRegions(transaction);
@@ -151,6 +263,9 @@ void Populator::populatePortion(Transaction &transaction, uint portionID, float 
 {
     setScalingFactor(scalingFactor);
     populatePartAndPartSupp(transaction, portionID);
+    populateSupplier(transaction, portionID);
+    populateCustomer(transaction, portionID);
+    populateOrdersAndLines(transaction, portionID);
 }
 
 } // namespace tpch

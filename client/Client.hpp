@@ -56,18 +56,18 @@ class Client {
     using Socket = boost::asio::ip::tcp::socket;
     Socket mSocket;
     client::CommandsImpl mCmds;
+    float mScalingFactor;
     uint mportionLower;
     uint mportionUpper;
-    float mScalingFactor;
     std::deque<LogEntry> mLog;
     decltype(Clock::now()) mEndTime;
 public:
-    Client(boost::asio::io_service& service, uint portionLower, uint portionUpper, float scalingFactor, decltype(Clock::now()) endTime)
+    Client(boost::asio::io_service& service, float scalingFactor, uint portionLower, uint portionUpper, decltype(Clock::now()) endTime)
         : mSocket(service)
         , mCmds(mSocket)
+        , mScalingFactor(scalingFactor)
         , mportionLower(portionLower)
         , mportionUpper(portionUpper)
-        , mScalingFactor(scalingFactor)
         , mEndTime(endTime)
     {}
     Socket& socket() {

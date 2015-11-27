@@ -90,10 +90,12 @@ int main(int argc, const char** argv) {
         std::vector<tpch::Client> clients;
         clients.reserve(sumClients);
         uint numPortions = 1000 * scalingFactor;
-        auto portionsPerClient = numPortions / sumClients;
+        uint portionsPerClient = numPortions / sumClients;
         for (decltype(sumClients) i = 0; i < sumClients; ++i) {
             if (i >= numPortions) break;
-            clients.emplace_back(service, uint(portionsPerClient * i + 1), uint(portionsPerClient * (i + 1)), scalingFactor, endTime);
+            uint lastPortion =  portionsPerClient * (i + 1);
+            if (i == sumClients - 1) lastPortion = numPortions;
+            clients.emplace_back(service, scalingFactor, portionsPerClient * i + 1, lastPortion, endTime);
         }
         for (size_t i = 0; i < hosts.size(); ++i) {
             auto h = hosts[i];

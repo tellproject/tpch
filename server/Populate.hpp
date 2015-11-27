@@ -47,8 +47,11 @@ public:
 private:
     void populateRegions(tell::db::Transaction& transaction);
     void populateNations(tell::db::Transaction& transaction);
-    void populatePartAndPartSupp(tell::db::Transaction& transaction, uint portionID);
     void setScalingFactor(float scalingFactor);
+    void populatePartAndPartSupp(tell::db::Transaction& transaction, uint portionID);
+    void populateSupplier(tell::db::Transaction& transaction, uint portionID);
+    void populateCustomer(tell::db::Transaction& transaction, uint portionID);
+    void populateOrdersAndLines(tell::db::Transaction& transaction, uint portionID);
 private:
     bool mInitialized;
 };

@@ -28,33 +28,12 @@
 #include <sstream>
 #include <fstream>
 #include <vector>
-#include <crossbow/singleton.hpp>
-#include <crossbow/string.hpp>
-
-namespace std {
-
-template<>
-struct hash<std::pair<int16_t, int16_t>> {
-    size_t operator() (std::pair<int16_t, int16_t> p) const {
-        return size_t(size_t(p.first) << 16 | p.first);
-    }
-};
-
-template<>
-struct equal_to<std::pair<int16_t, int16_t>> {
-    using type = std::pair<int16_t, int16_t>;
-    bool operator() (type a, type b) const {
-        return a.first == b.first && a.second == b.second;
-    }
-};
-
-}
 
 namespace tpch {
 
 // splitting strings
-extern std::vector<std::string> split(const std::string& str, const char delim);
-
+std::vector<std::string> split(const std::string& str, const char delim);
+uint64_t convertSqlDateToLong(const std::string& dateString);
 int64_t now();
 
 }

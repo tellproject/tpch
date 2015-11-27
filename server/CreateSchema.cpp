@@ -138,8 +138,8 @@ void createLineItems(db::Transaction& transaction) {
     schema.addField(store::FieldType::SMALLINT, "l_returnflag", true);    // char (1)
     schema.addField(store::FieldType::SMALLINT, "l_linestatus", true);    // char (1)
     schema.addField(store::FieldType::BIGINT, "l_shipdate", true);        //datetime
-    schema.addField(store::FieldType::BIGINT, "l_commitdate", true);        //datetime
-    schema.addField(store::FieldType::BIGINT, "l_receiptdate", true);        //datetime
+    schema.addField(store::FieldType::BIGINT, "l_commitdate", true);      //datetime
+    schema.addField(store::FieldType::BIGINT, "l_receiptdate", true);     //datetime
     schema.addField(store::FieldType::TEXT, "l_shipinstruct", true);
     schema.addField(store::FieldType::TEXT, "l_shipmode", true);
     schema.addField(store::FieldType::TEXT, "l_comment", true);
