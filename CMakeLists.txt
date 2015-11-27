@@ -47,6 +47,9 @@ set(CLIENT_SRC
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/server/ch-tables/nation.tbl ${CMAKE_CURRENT_BINARY_DIR}/ch-tables/nation.tbl COPYONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/server/ch-tables/region.tbl ${CMAKE_CURRENT_BINARY_DIR}/ch-tables/region.tbl COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/server/dbgen/dists.dss ${CMAKE_CURRENT_BINARY_DIR}/dists.dss COPYONLY)
+ # just be sure, also copy it into main build directory
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/server/dbgen/dists.dss ${CMAKE_CURRENT_BINARY_DIR}/../../dists.dss COPYONLY)
 
 add_library(dbgen ${DB_GEN_SRC})
 target_link_libraries(dbgen m)

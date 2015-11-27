@@ -26,7 +26,7 @@
 #include <chrono>
 #include <algorithm>
 
-#include "dbgen/dsstypes.h"
+#include "dbgen/driver.h"
 
 using namespace tell::db;
 
@@ -80,7 +80,17 @@ void Populator::populateNations(Transaction &transaction)
 void Populator::setScalingFactor(float scalingFactor)
 {
     if (!mInitialized) {
-        // copy-pasted from dbgen-driver
+        // copy-pasted from dbgen-driver, l. 716
+        load_dists();
+#ifdef RNG_TEST
+        for (int i=0; i <= MAX_STREAM; i++)
+            Seed[i].nCalls = 0;
+ #endif
+        /* have to do this after init */
+        tdefs[NATION].base = nations.count;
+        tdefs[REGION].base = regions.count;
+
+        // copy-pasted from dbgen-driver, l. 488
         if (scalingFactor < MIN_SCALE)
         {
             int i;

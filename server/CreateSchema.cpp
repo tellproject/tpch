@@ -156,6 +156,7 @@ void createSchema(tell::db::Transaction& transaction) {
     createPartSupp(transaction);
     createCustomer(transaction);
     createOrders(transaction);
+    createLineItems(transaction);
 }
 
 } // namespace tpch
