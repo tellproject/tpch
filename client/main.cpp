@@ -80,6 +80,11 @@ int main(int argc, const char** argv) {
         return 1;
     }
 
+    if (numClients > 1 && populate) {
+        std::cerr << "population only works correctly with 1 client!\n";
+        return 1;
+    }
+
     auto startTime = tpch::Clock::now();
     auto endTime = startTime + std::chrono::seconds(time);
     crossbow::logger::logger->config.level = crossbow::logger::logLevelFromString(logLevel);

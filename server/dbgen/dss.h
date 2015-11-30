@@ -88,6 +88,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define  NONE		-1
 #define  PART		0
 #define  PSUPP		1
@@ -550,3 +554,7 @@ sprintf(tgt, "19%02d-%02d-%02d", yr, mn, dy)
 #define  BBB_CMNT_SD   46         
 #define  BBB_OFFSET_SD 47         
 #endif            /* DSS_H */
+
+#ifdef __cplusplus
+}
+#endif

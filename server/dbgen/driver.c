@@ -160,97 +160,97 @@ load_dists (void)
 /*
 * generate a particular table
 */
-void
-gen_tbl (int tnum, DSS_HUGE start, DSS_HUGE count, long upd_num)
-{
-	static order_t o;
-	supplier_t supp;
-	customer_t cust;
-	part_t part;
-	code_t code;
-	static int completed = 0;
-	DSS_HUGE i;
+//void
+//gen_tbl (int tnum, DSS_HUGE start, DSS_HUGE count, long upd_num)
+//{
+//	static order_t o;
+//	supplier_t supp;
+//	customer_t cust;
+//	part_t part;
+//	code_t code;
+//	static int completed = 0;
+//	DSS_HUGE i;
 
-	DSS_HUGE rows_per_segment=0;
-	DSS_HUGE rows_this_segment=-1;
-	DSS_HUGE residual_rows=0;
+//	DSS_HUGE rows_per_segment=0;
+//	DSS_HUGE rows_this_segment=-1;
+//	DSS_HUGE residual_rows=0;
 
-	if (insert_segments)
-		{
-		rows_per_segment = count / insert_segments;
-		residual_rows = count - (rows_per_segment * insert_segments);
-		}
+//	if (insert_segments)
+//		{
+//		rows_per_segment = count / insert_segments;
+//		residual_rows = count - (rows_per_segment * insert_segments);
+//		}
 
-	for (i = start; count; count--, i++)
-	{
-		LIFENOISE (1000, i);
-		row_start(tnum);
+//	for (i = start; count; count--, i++)
+//	{
+//		LIFENOISE (1000, i);
+//		row_start(tnum);
 
-		switch (tnum)
-		{
-		case LINE:
-		case ORDER:
-  		case ORDER_LINE: 
-			mk_order (i, &o, upd_num % 10000);
+//		switch (tnum)
+//		{
+//		case LINE:
+//		case ORDER:
+//  		case ORDER_LINE:
+//			mk_order (i, &o, upd_num % 10000);
 
-		  if (insert_segments  && (upd_num > 0))
-			if((upd_num / 10000) < residual_rows)
-				{
-				if((++rows_this_segment) > rows_per_segment) 
-					{						
-					rows_this_segment=0;
-					upd_num += 10000;					
-					}
-				}
-			else
-				{
-				if((++rows_this_segment) >= rows_per_segment) 
-					{
-					rows_this_segment=0;
-					upd_num += 10000;
-					}
-				}
+//		  if (insert_segments  && (upd_num > 0))
+//			if((upd_num / 10000) < residual_rows)
+//				{
+//				if((++rows_this_segment) > rows_per_segment)
+//					{
+//					rows_this_segment=0;
+//					upd_num += 10000;
+//					}
+//				}
+//			else
+//				{
+//				if((++rows_this_segment) >= rows_per_segment)
+//					{
+//					rows_this_segment=0;
+//					upd_num += 10000;
+//					}
+//				}
 
-			if (set_seeds == 0)
-				tdefs[tnum].loader(&o, upd_num);
-			break;
-		case SUPP:
-			mk_supp (i, &supp);
-			if (set_seeds == 0)
-				tdefs[tnum].loader(&supp, upd_num);
-			break;
-		case CUST:
-			mk_cust (i, &cust);
-			if (set_seeds == 0)
-				tdefs[tnum].loader(&cust, upd_num);
-			break;
-		case PSUPP:
-		case PART:
-  		case PART_PSUPP: 
-			mk_part (i, &part);
-			if (set_seeds == 0)
-				tdefs[tnum].loader(&part, upd_num);
-			break;
-		case NATION:
-			mk_nation (i, &code);
-			if (set_seeds == 0)
-				tdefs[tnum].loader(&code, 0);
-			break;
-		case REGION:
-			mk_region (i, &code);
-			if (set_seeds == 0)
-				tdefs[tnum].loader(&code, 0);
-			break;
-		}
-		row_stop(tnum);
-		if (set_seeds && (i % tdefs[tnum].base) < 2)
-		{
-			printf("\nSeeds for %s at rowcount %ld\n", tdefs[tnum].comment, i);
-			dump_seeds(tnum);
-		}
-	}
-	completed |= 1 << tnum;
-}
+//			if (set_seeds == 0)
+//				tdefs[tnum].loader(&o, upd_num);
+//			break;
+//		case SUPP:
+//			mk_supp (i, &supp);
+//			if (set_seeds == 0)
+//				tdefs[tnum].loader(&supp, upd_num);
+//			break;
+//		case CUST:
+//			mk_cust (i, &cust);
+//			if (set_seeds == 0)
+//				tdefs[tnum].loader(&cust, upd_num);
+//			break;
+//		case PSUPP:
+//		case PART:
+//  		case PART_PSUPP:
+//			mk_part (i, &part);
+//			if (set_seeds == 0)
+//				tdefs[tnum].loader(&part, upd_num);
+//			break;
+//		case NATION:
+//			mk_nation (i, &code);
+//			if (set_seeds == 0)
+//				tdefs[tnum].loader(&code, 0);
+//			break;
+//		case REGION:
+//			mk_region (i, &code);
+//			if (set_seeds == 0)
+//				tdefs[tnum].loader(&code, 0);
+//			break;
+//		}
+//		row_stop(tnum);
+//		if (set_seeds && (i % tdefs[tnum].base) < 2)
+//		{
+//			printf("\nSeeds for %s at rowcount %ld\n", tdefs[tnum].comment, i);
+//			dump_seeds(tnum);
+//		}
+//	}
+//	completed |= 1 << tnum;
+//}
 
 
 

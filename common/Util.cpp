@@ -45,7 +45,11 @@ uint64_t convertSqlDateToLong(const std::string& dateString)
     using namespace boost::posix_time;
 
     ptime epoch = time_from_string("1970-01-01 00:00:00.000");
-    ptime other = time_from_string(dateString);
+    ptime other;
+    if (dateString.find(" ") == std::string::npos)
+        other = time_from_string(std::string(dateString + " 00:00:00.000"));
+    else
+        other = time_from_string(dateString);
     time_duration const diff = other - epoch;
     return diff.total_seconds();
 }

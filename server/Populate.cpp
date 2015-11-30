@@ -230,7 +230,7 @@ void Populator::populateOrdersAndLines(Transaction &transaction, uint portionID)
             {"o_orderkey", static_cast<int32_t>(ord.okey)},
             {"o_custkey", static_cast<int32_t>(ord.custkey)},
             {"o_orderstatus", static_cast<int16_t>(ord.orderstatus)},
-            {"o_o_totalprice", static_cast<int64_t>(ord.totalprice)},
+            {"o_totalprice", static_cast<int64_t>(ord.totalprice)},
             {"o_orderdate", static_cast<int64_t>(convertSqlDateToLong(ord.odate))},
             {"o_orderpriority", crossbow::string(ord.opriority)},
             {"o_clerk", crossbow::string(ord.clerk)},
