@@ -115,7 +115,7 @@ void createOrders(db::Transaction& transaction) {
     schema.addField(store::FieldType::INT, "o_custkey", true);
     schema.addField(store::FieldType::SMALLINT, "o_orderstatus", true);    // char (1)
     schema.addField(store::FieldType::BIGINT, "o_totalprice", true);       //numeric (15,2)
-    schema.addField(store::FieldType::BIGINT, "o_orderdate", true);        //datetime
+    schema.addField(store::FieldType::BIGINT, "o_orderdate", true);        //datetime (nanosecs since 1970)
     schema.addField(store::FieldType::TEXT, "o_orderpriority", true);
     schema.addField(store::FieldType::TEXT, "o_clerk", true);
     schema.addField(store::FieldType::INT, "o_shippriority", true);
@@ -137,9 +137,9 @@ void createLineItems(db::Transaction& transaction) {
     schema.addField(store::FieldType::BIGINT, "l_tax", true);             //numeric (15,2)
     schema.addField(store::FieldType::SMALLINT, "l_returnflag", true);    // char (1)
     schema.addField(store::FieldType::SMALLINT, "l_linestatus", true);    // char (1)
-    schema.addField(store::FieldType::BIGINT, "l_shipdate", true);        //datetime
-    schema.addField(store::FieldType::BIGINT, "l_commitdate", true);      //datetime
-    schema.addField(store::FieldType::BIGINT, "l_receiptdate", true);     //datetime
+    schema.addField(store::FieldType::BIGINT, "l_shipdate", true);        //datetime (nanosecs since 1970)
+    schema.addField(store::FieldType::BIGINT, "l_commitdate", true);      //datetime (nanosecs since 1970)
+    schema.addField(store::FieldType::BIGINT, "l_receiptdate", true);     //datetime (nanosecs since 1970)
     schema.addField(store::FieldType::TEXT, "l_shipinstruct", true);
     schema.addField(store::FieldType::TEXT, "l_shipmode", true);
     schema.addField(store::FieldType::TEXT, "l_comment", true);

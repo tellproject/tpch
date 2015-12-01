@@ -40,7 +40,9 @@ std::vector<std::string> split(const std::string& str, const char delim) {
     return result;
 }
 
-uint64_t convertSqlDateToLong(const std::string& dateString)
+
+
+uint64_t convertSqlDateToNanoSecs(const std::string& dateString)
 {
     using namespace boost::posix_time;
 
@@ -51,7 +53,7 @@ uint64_t convertSqlDateToLong(const std::string& dateString)
     else
         other = time_from_string(dateString);
     time_duration const diff = other - epoch;
-    return diff.total_seconds();
+    return diff.total_nanoseconds();
 }
 
 int64_t now() {

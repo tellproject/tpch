@@ -33,7 +33,9 @@ namespace tpch {
 
 // splitting strings
 std::vector<std::string> split(const std::string& str, const char delim);
-uint64_t convertSqlDateToLong(const std::string& dateString);
+
+// converts a SqlDate (with timestamp) to nanonsecs since 1.1.1970.
+uint64_t convertSqlDateToNanoSecs(const std::string& dateString);
 int64_t now();
 
 }
