@@ -53,7 +53,7 @@ uint64_t convertSqlDateToNanoSecs(const std::string& dateString)
     else
         other = time_from_string(dateString);
     time_duration const diff = other - epoch;
-    return diff.total_nanoseconds();
+    return diff.total_milliseconds();
 }
 
 int64_t now() {
