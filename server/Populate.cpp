@@ -82,19 +82,19 @@ void Populator::setScalingFactor(float scalingFactor)
     if (!mInitialized) {
 
         // copy-pasted from original driver.c, l. 672
-        force = 0;
-        set_seeds = 0;
-        scale = 1;
-        updates = 0;
-        step = -1;
-        tdefs[ORDER].base *=
-            ORDERS_PER_CUST;			/* have to do this after init */
-        tdefs[LINE].base *=
-            ORDERS_PER_CUST;			/* have to do this after init */
-        tdefs[ORDER_LINE].base *=
-            ORDERS_PER_CUST;			/* have to do this after init */
-        children = 1;
-        d_path = NULL;
+//        force = 0;
+//        set_seeds = 0;
+//        scale = 1;
+//        updates = 0;
+//        step = -1;
+//        tdefs[ORDER].base *=
+//            ORDERS_PER_CUST;			/* have to do this after init */
+//        tdefs[LINE].base *=
+//            ORDERS_PER_CUST;			/* have to do this after init */
+//        tdefs[ORDER_LINE].base *=
+//            ORDERS_PER_CUST;			/* have to do this after init */
+//        children = 1;
+//        d_path = NULL;
 
         // copy-pasted from original driver.c, l. 716
         load_dists();
