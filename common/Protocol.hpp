@@ -180,6 +180,7 @@ public:
                     if (ec) {
                         Result res;
                         callback(ec, res);
+                        return;
                     }
                     readResponse<Callback, Result>(callback, bytes_read + br);
                 });

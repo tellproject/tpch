@@ -110,14 +110,17 @@ public:
             bool success;
             crossbow::string msg;
             try {
+                std::cout << "Starting transaction of portion " << args.first << std::endl;
                 Populator populator;
                 populator.populatePortion(tx, args.first, args.second);
                 tx.commit();
+                std::cout << "Commited transaction of portion " << args.first << std::endl;
                 success = true;
             } catch (std::exception& ex) {
                 tx.rollback();
                 success = false;
                 msg = ex.what();
+                std::cout << "portion " << args.first << " created the following problem: " << msg << std::endl;
             }
             mService.post([this, success, msg, callback](){
                 mFiber->wait();

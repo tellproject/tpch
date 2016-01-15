@@ -28,9 +28,15 @@
 
 #include "dbgen/driver.h"
 
+#include "unordered_set"
+
 using namespace tell::db;
 
 namespace tpch {
+
+std::mutex _mutex;
+std::unordered_set<uint64_t> partSuppkeys;
+std::unordered_set<uint64_t> lineitemKeys;
 
 void Populator::populateRegions(Transaction &transaction)
 {
@@ -82,19 +88,19 @@ void Populator::setScalingFactor(float scalingFactor)
     if (!mInitialized) {
 
         // copy-pasted from original driver.c, l. 672
-//        force = 0;
-//        set_seeds = 0;
-//        scale = 1;
-//        updates = 0;
-//        step = -1;
-//        tdefs[ORDER].base *=
-//            ORDERS_PER_CUST;			/* have to do this after init */
-//        tdefs[LINE].base *=
-//            ORDERS_PER_CUST;			/* have to do this after init */
-//        tdefs[ORDER_LINE].base *=
-//            ORDERS_PER_CUST;			/* have to do this after init */
-//        children = 1;
-//        d_path = NULL;
+        force = 0;
+        set_seeds = 0;
+        scale = 1;
+        updates = 0;
+        step = -1;
+        tdefs[ORDER].base *=
+            ORDERS_PER_CUST;			/* have to do this after init */
+        tdefs[LINE].base *=
+            ORDERS_PER_CUST;			/* have to do this after init */
+        tdefs[ORDER_LINE].base *=
+            ORDERS_PER_CUST;			/* have to do this after init */
+        children = 1;
+        d_path = NULL;
 
         // copy-pasted from original driver.c, l. 716
         load_dists();
@@ -167,6 +173,14 @@ void Populator::populatePartAndPartSupp(Transaction &transaction, uint portionID
         for (long snum = 0; snum < SUPP_PER_PART; ++snum) {
             auto &partSupp = part.s[snum];
             tell::db::key_t partSuppKey = tell::db::key_t{keyBase | uint64_t(partSupp.suppkey)};
+            {
+                std::unique_lock<std::mutex> _(_mutex);
+                if (partSuppkeys.count(partSuppKey.value) > 0) {
+                    std::cout << "Duplicate key in partsupp: p_partkey=" << part.partkey << ", ps_suppkey=" << partSupp.suppkey << std::endl;
+                    std::terminate();
+                }
+                partSuppkeys.insert(partSuppKey.value);
+            }
             transaction.insert(partSuppTable, partSuppKey, {{
                 {"ps_partkey", static_cast<int32_t>(partSupp.partkey)},
                 {"ps_suppkey", static_cast<int32_t>(partSupp.suppkey)},
@@ -257,6 +271,14 @@ void Populator::populateOrdersAndLines(Transaction &transaction, uint portionID)
         for (long line = 0; line < ord.lines; ++line) {
             auto &oLine = ord.l[line];
             tell::db::key_t oLineKey = tell::db::key_t{keyBase | uint64_t(oLine.lcnt)};
+            {
+                std::unique_lock<std::mutex> _(_mutex);
+                if (lineitemKeys.count(oLineKey.value) > 0) {
+                    std::cout << "Duplicate key in lineitem: o_orderkey=" << ord.okey << ", l_lcnt=" << oLine.lcnt << std::endl;
+                    std::terminate();
+                }
+                lineitemKeys.insert(oLineKey.value);
+            }
             transaction.insert(lineItemTable, oLineKey, {{
                 {"l_orderkey", static_cast<int32_t>(oLine.okey)},
                 {"l_partkey", static_cast<int32_t>(oLine.partkey)},
