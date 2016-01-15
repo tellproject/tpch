@@ -80,7 +80,23 @@ void Populator::populateNations(Transaction &transaction)
 void Populator::setScalingFactor(float scalingFactor)
 {
     if (!mInitialized) {
-        // copy-pasted from dbgen-driver, l. 716
+
+        // copy-pasted from original driver.c, l. 672
+        force = 0;
+        set_seeds = 0;
+        scale = 1;
+        updates = 0;
+        step = -1;
+        tdefs[ORDER].base *=
+            ORDERS_PER_CUST;			/* have to do this after init */
+        tdefs[LINE].base *=
+            ORDERS_PER_CUST;			/* have to do this after init */
+        tdefs[ORDER_LINE].base *=
+            ORDERS_PER_CUST;			/* have to do this after init */
+        children = 1;
+        d_path = NULL;
+
+        // copy-pasted from original driver.c, l. 716
         load_dists();
 #ifdef RNG_TEST
         for (int i=0; i <= MAX_STREAM; i++)
@@ -90,7 +106,7 @@ void Populator::setScalingFactor(float scalingFactor)
         tdefs[NATION].base = nations.count;
         tdefs[REGION].base = regions.count;
 
-        // copy-pasted from dbgen-driver, l. 488
+        // copy-pasted from driver.c, l. 488
         if (scalingFactor < MIN_SCALE)
         {
             int i;

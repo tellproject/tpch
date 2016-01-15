@@ -42,7 +42,7 @@ std::vector<std::string> split(const std::string& str, const char delim) {
 
 
 
-uint64_t convertSqlDateToNanoSecs(const std::string& dateString)
+uint64_t convertSqlDateToMilliSecs(const std::string& dateString)
 {
     using namespace boost::posix_time;
 
