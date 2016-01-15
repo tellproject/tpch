@@ -56,9 +56,9 @@ uint64_t convertSqlDateToNanoSecs(const std::string& dateString)
     return diff.total_milliseconds();
 }
 
-int64_t now() {
-    auto now = std::chrono::system_clock::now();
-    return now.time_since_epoch().count();
-}
+//int64_t now() {
+//    auto now = std::chrono::system_clock::now();
+//    std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+//}
 
 }

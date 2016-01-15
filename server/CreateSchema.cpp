@@ -61,7 +61,7 @@ void createPart(db::Transaction& transaction) {
     schema.addField(store::FieldType::TEXT, "p_type", true);
     schema.addField(store::FieldType::INT, "p_size", true);
     schema.addField(store::FieldType::TEXT, "p_container", true);
-    schema.addField(store::FieldType::BIGINT, "p_retailprice", true);  //numeric (15,2)
+    schema.addField(store::FieldType::DOUBLE, "p_retailprice", true);  //numeric (15,2)
     schema.addField(store::FieldType::TEXT, "p_comment", true);
     transaction.createTable("part", schema);
 }
@@ -75,7 +75,7 @@ void createSupplier(db::Transaction& transaction) {
     schema.addField(store::FieldType::TEXT, "s_address", true);
     schema.addField(store::FieldType::SMALLINT, "s_nationkey", true);
     schema.addField(store::FieldType::TEXT, "s_phone", true);
-    schema.addField(store::FieldType::BIGINT, "s_acctbal", true);  //numeric (15,2)
+    schema.addField(store::FieldType::DOUBLE, "s_acctbal", true);  //numeric (15,2)
     schema.addField(store::FieldType::TEXT, "s_comment", true);
     transaction.createTable("supplier", schema);
 }
@@ -87,7 +87,7 @@ void createPartSupp(db::Transaction& transaction) {
     schema.addField(store::FieldType::INT, "ps_partkey", true);
     schema.addField(store::FieldType::INT, "ps_suppkey", true);
     schema.addField(store::FieldType::INT, "ps_availqty", true);
-    schema.addField(store::FieldType::BIGINT, "ps_supplycost", true);  //numeric (15,2)
+    schema.addField(store::FieldType::DOUBLE, "ps_supplycost", true);  //numeric (15,2)
     schema.addField(store::FieldType::TEXT, "ps_comment", true);
     transaction.createTable("partsupp", schema);
 }
@@ -101,7 +101,7 @@ void createCustomer(db::Transaction& transaction) {
     schema.addField(store::FieldType::TEXT, "c_address", true);
     schema.addField(store::FieldType::SMALLINT, "c_nationkey", true);
     schema.addField(store::FieldType::TEXT, "c_phone", true);
-    schema.addField(store::FieldType::BIGINT, "c_acctbal", true);       //numeric (15,2)
+    schema.addField(store::FieldType::DOUBLE, "c_acctbal", true);       //numeric (15,2)
     schema.addField(store::FieldType::TEXT, "c_mktsegment", true);
     schema.addField(store::FieldType::TEXT, "c_comment", true);
     transaction.createTable("customer", schema);
@@ -113,9 +113,9 @@ void createOrders(db::Transaction& transaction) {
     store::Schema schema(store::TableType::TRANSACTIONAL);
     schema.addField(store::FieldType::INT, "o_orderkey", true);
     schema.addField(store::FieldType::INT, "o_custkey", true);
-    schema.addField(store::FieldType::SMALLINT, "o_orderstatus", true);    // char (1)
-    schema.addField(store::FieldType::BIGINT, "o_totalprice", true);       //numeric (15,2)
-    schema.addField(store::FieldType::BIGINT, "o_orderdate", true);        //datetime (nanosecs since 1970)
+    schema.addField(store::FieldType::TEXT, "o_orderstatus", true);        // char (1)
+    schema.addField(store::FieldType::DOUBLE, "o_totalprice", true);       //numeric (15,2)
+    schema.addField(store::FieldType::BIGINT, "o_orderdate", true);        //datetime (millisecs since 1970)
     schema.addField(store::FieldType::TEXT, "o_orderpriority", true);
     schema.addField(store::FieldType::TEXT, "o_clerk", true);
     schema.addField(store::FieldType::INT, "o_shippriority", true);
@@ -131,12 +131,12 @@ void createLineItems(db::Transaction& transaction) {
     schema.addField(store::FieldType::INT, "l_partkey", true);
     schema.addField(store::FieldType::INT, "l_suppkey", true);
     schema.addField(store::FieldType::INT, "l_linenumber", true);
-    schema.addField(store::FieldType::BIGINT, "l_quantity", true);        //numeric (15,2)
-    schema.addField(store::FieldType::BIGINT, "l_extendedprice", true);   //numeric (15,2)
-    schema.addField(store::FieldType::BIGINT, "l_discount", true);        //numeric (15,2)
-    schema.addField(store::FieldType::BIGINT, "l_tax", true);             //numeric (15,2)
-    schema.addField(store::FieldType::SMALLINT, "l_returnflag", true);    // char (1)
-    schema.addField(store::FieldType::SMALLINT, "l_linestatus", true);    // char (1)
+    schema.addField(store::FieldType::DOUBLE, "l_quantity", true);        //numeric (15,2)
+    schema.addField(store::FieldType::DOUBLE, "l_extendedprice", true);   //numeric (15,2)
+    schema.addField(store::FieldType::DOUBLE, "l_discount", true);        //numeric (15,2)
+    schema.addField(store::FieldType::DOUBLE, "l_tax", true);             //numeric (15,2)
+    schema.addField(store::FieldType::TEXT, "l_returnflag", true);    // char (1)
+    schema.addField(store::FieldType::TEXT, "l_linestatus", true);    // char (1)
     schema.addField(store::FieldType::BIGINT, "l_shipdate", true);        //datetime (nanosecs since 1970)
     schema.addField(store::FieldType::BIGINT, "l_commitdate", true);      //datetime (nanosecs since 1970)
     schema.addField(store::FieldType::BIGINT, "l_receiptdate", true);     //datetime (nanosecs since 1970)

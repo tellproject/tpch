@@ -144,7 +144,7 @@ void Populator::populatePartAndPartSupp(Transaction &transaction, uint portionID
             {"p_type", crossbow::string(part.type)},
             {"p_size", static_cast<int32_t>(part.size)},
             {"p_container", crossbow::string(part.container)},
-            {"p_retailprice", static_cast<int64_t>(part.retailprice)},
+            {"p_retailprice", double(part.retailprice)/100},
             {"p_comment", crossbow::string(part.comment)}
         }});
         keyBase <<= 32;
@@ -155,7 +155,7 @@ void Populator::populatePartAndPartSupp(Transaction &transaction, uint portionID
                 {"ps_partkey", static_cast<int32_t>(partSupp.partkey)},
                 {"ps_suppkey", static_cast<int32_t>(partSupp.suppkey)},
                 {"ps_availqty", static_cast<int32_t>(partSupp.qty)},
-                {"ps_supplycost", static_cast<int64_t>(partSupp.scost)},
+                {"ps_supplycost", double(partSupp.scost)/100},
                 {"ps_comment", crossbow::string(partSupp.comment)}
             }});
         }
@@ -180,7 +180,7 @@ void Populator::populateSupplier(Transaction &transaction, uint portionID)
             {"s_address", crossbow::string(supp.address)},
             {"s_nationkey", static_cast<int16_t>(supp.nation_code)},
             {"s_phone", crossbow::string(supp.phone)},
-            {"s_acctbal", static_cast<int64_t>(supp.acctbal)},
+            {"s_acctbal", double(supp.acctbal)/100},
             {"s_comment", crossbow::string(supp.comment)}
         }});
     }
@@ -204,7 +204,7 @@ void Populator::populateCustomer(Transaction &transaction, uint portionID)
             {"c_address", crossbow::string(cust.address)},
             {"c_nationkey", static_cast<int16_t>(cust.nation_code)},
             {"c_phone", crossbow::string(cust.phone)},
-            {"c_acctbal", static_cast<int64_t>(cust.acctbal)},
+            {"c_acctbal", double(cust.acctbal)/100},
             {"c_mktsegment", crossbow::string(cust.mktsegment)},
             {"c_comment", crossbow::string(cust.comment)}
         }});
@@ -229,9 +229,9 @@ void Populator::populateOrdersAndLines(Transaction &transaction, uint portionID)
         transaction.insert(ordersTable, orderKey, {{
             {"o_orderkey", static_cast<int32_t>(ord.okey)},
             {"o_custkey", static_cast<int32_t>(ord.custkey)},
-            {"o_orderstatus", static_cast<int16_t>(ord.orderstatus)},
-            {"o_totalprice", static_cast<int64_t>(ord.totalprice)},
-            {"o_orderdate", static_cast<int64_t>(convertSqlDateToNanoSecs(ord.odate))},
+            {"o_orderstatus", crossbow::string(&ord.orderstatus, 1)},
+            {"o_totalprice", double(ord.totalprice)/100},
+            {"o_orderdate", static_cast<int64_t>(convertSqlDateToMilliSecs(ord.odate))},
             {"o_orderpriority", crossbow::string(ord.opriority)},
             {"o_clerk", crossbow::string(ord.clerk)},
             {"o_shippriority", static_cast<int32_t>(ord.spriority)},
@@ -246,15 +246,15 @@ void Populator::populateOrdersAndLines(Transaction &transaction, uint portionID)
                 {"l_partkey", static_cast<int32_t>(oLine.partkey)},
                 {"l_suppkey", static_cast<int32_t>(oLine.suppkey)},
                 {"l_linenumber", static_cast<int32_t>(oLine.lcnt)},
-                {"l_quantity", static_cast<int64_t>(oLine.quantity)},
-                {"l_extendedprice", static_cast<int64_t>(oLine.eprice)},
-                {"l_discount", static_cast<int64_t>(oLine.discount)},
-                {"l_tax", static_cast<int64_t>(oLine.tax)},
-                {"l_returnflag", static_cast<int16_t>(oLine.rflag[0])},
-                {"l_linestatus", static_cast<int16_t>(oLine.lstatus[0])},
-                {"l_shipdate", static_cast<int64_t>(convertSqlDateToNanoSecs(oLine.sdate))},
-                {"l_commitdate", static_cast<int64_t>(convertSqlDateToNanoSecs(oLine.cdate))},
-                {"l_receiptdate", static_cast<int64_t>(convertSqlDateToNanoSecs(oLine.rdate))},
+                {"l_quantity", double(oLine.quantity)/100},
+                {"l_extendedprice", double(oLine.eprice)/100},
+                {"l_discount", double(oLine.discount)/100},
+                {"l_tax", double(oLine.tax)/100},
+                {"l_returnflag", crossbow::string(&oLine.rflag[0], 1)},
+                {"l_linestatus", crossbow::string(&oLine.lstatus[0], 1)},
+                {"l_shipdate", static_cast<int64_t>(convertSqlDateToMilliSecs(oLine.sdate))},
+                {"l_commitdate", static_cast<int64_t>(convertSqlDateToMilliSecs(oLine.cdate))},
+                {"l_receiptdate", static_cast<int64_t>(convertSqlDateToMilliSecs(oLine.rdate))},
                 {"l_shipinstruct", crossbow::string(oLine.shipinstruct)},
                 {"l_shipmode", crossbow::string(oLine.shipmode)},
                 {"l_comment", crossbow::string(oLine.comment)}
