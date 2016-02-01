@@ -40,14 +40,17 @@ using err_code = boost::system::error_code;
 
 int main(int argc, const char** argv) {
     bool help = false;
+    bool use_kudu = false;
     bool populate = false;
-    float scalingFactor = 1.0f;
     crossbow::string host;
     std::string port("8713");
     std::string logLevel("DEBUG");
     std::string outFile("out.csv");
     size_t numClients = 1;
     unsigned time = 5*60;
+    std::string storage = "localhost";  // used only for population
+    std::string commitManager;  // used only for population
+    std::string baseDir = "/mnt/local/tell/tpch_2_17_0/dbgen"; // used only for population
     bool exit = false;
     auto opts = create_options("tpch_client",
             value<'h'>("help", &help, tag::description{"print help"})
@@ -55,9 +58,11 @@ int main(int argc, const char** argv) {
             , value<'l'>("log-level", &logLevel, tag::description{"The log level"})
             , value<'c'>("num-clients", &numClients, tag::description{"Number of Clients to run per host"})
             , value<'P'>("populate", &populate, tag::description{"Populate the database"})
-            , value<'s'>("scaling-factor", &scalingFactor, tag::description{"Number of warehouses"})
             , value<'t'>("time", &time, tag::description{"Duration of the benchmark in seconds"})
             , value<'o'>("out", &outFile, tag::description{"Path to the output file"})
+            , value<'s'>("storage", &storage, tag::description{"address(es) of the storage nodes (only necessary for population)"})
+            , value<'x'>("commit-manager", &commitManager, tag::description{"address of the commit manager (only necessary for population)"})
+            , value<'d'>("base-dir", &baseDir, tag::description{"Base directory to the generated tbl files (only necessary for population)"})
             , value<-1>("exit", &exit, tag::description{"Quit server"})
             );
     try {
@@ -75,15 +80,8 @@ int main(int argc, const char** argv) {
         std::cerr << "No host\n";
         return 1;
     }
-    if (scalingFactor < 0.1) {
-        std::cerr << "scaling factor must be at least 0.1!\n";
-        return 1;
-    }
 
-    if (numClients > 1 && populate) {
-        std::cerr << "population only works correctly with 1 client!\n";
-        return 1;
-    }
+    //todo: continue here with merging CreateSchema.main into this main...
 
     auto startTime = tpch::Clock::now();
     auto endTime = startTime + std::chrono::seconds(time);
@@ -94,13 +92,8 @@ int main(int argc, const char** argv) {
         auto sumClients = hosts.size() * numClients;
         std::vector<tpch::Client> clients;
         clients.reserve(sumClients);
-        uint numPortions = 1000 * scalingFactor;
-        uint portionsPerClient = numPortions / sumClients;
         for (decltype(sumClients) i = 0; i < sumClients; ++i) {
-            if (i >= numPortions) break;
-            uint lastPortion =  portionsPerClient * (i + 1);
-            if (i == sumClients - 1) lastPortion = numPortions;
-            clients.emplace_back(service, scalingFactor, portionsPerClient * i + 1, lastPortion, endTime);
+            clients.emplace_back(service, endTime);
         }
         for (size_t i = 0; i < hosts.size(); ++i) {
             auto h = hosts[i];
@@ -141,41 +134,9 @@ int main(int argc, const char** argv) {
         }
 
         if (populate) {
-            auto& cmds = clients[0].commands();
-            cmds.execute<tpch::Command::CREATE_SCHEMA>(
-                    [&clients, &scalingFactor](const err_code& ec,
-                        const std::tuple<bool, crossbow::string>& res){
-                if (ec) {
-                    LOG_ERROR(ec.message());
-                    return;
-                }
-                if (!std::get<0>(res)) {
-                    LOG_ERROR(std::get<1>(res));
-                    return;
-                }
-
-                auto& cmds = clients[0].commands();
-                cmds.execute<tpch::Command::POPULATE_STATIC>([&clients](const err_code& ec, const std::tuple<bool, crossbow::string>& res){
-                    if (ec) {
-                        LOG_ERROR(ec.message());
-                        return;
-                    }
-                    if (!std::get<0>(res)) {
-                        LOG_ERROR(std::get<1>(res));
-                        return;
-                    }
-
-                    for (auto& client : clients) {
-                        client.populate();
-                    }
-                });
-            });
+            //todo: population code
         } else {
-//            for (decltype(clients.size()) i = 0; i < clients.size(); ++i) {
-//                auto& client = clients[i];
-//                client.run();
-//            }
-            LOG_ERROR("nothing to be run right now, you can only populate!");
+            //todo: commands
         }
 END:
         service.run();
@@ -187,15 +148,6 @@ END:
             for (const auto& e : queue) {
                 crossbow::string tName;
                 switch (e.transaction) {
-                case tpch::Command::POPULATE_PORTION:
-                    tName = "Populate portion";
-                    break;
-                case tpch::Command::POPULATE_STATIC:
-                    tName = "Populate region and nation table";
-                    break;
-                case tpch::Command::CREATE_SCHEMA:
-                    tName = "Schema Create";
-                    break;
                 case tpch::Command::EXIT:
                     assert(false);
                     break;

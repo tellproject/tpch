@@ -20,50 +20,33 @@ target_include_directories(tpch_common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(tpch_common PUBLIC ${Boost_INCLUDE_DIRS})
 target_include_directories(tpch_common PUBLIC ${Crossbow_INCLUDE_DIRS})
 target_link_libraries(tpch_common PUBLIC ${Boost_LIBRARIES})
-target_link_libraries(tpch_common PUBLIC telldb)
+target_link_libraries(tpch_common PUBLIC crossbow_logger)
 
-set(DB_GEN_SRC
-    server/dbgen/driver.c
-    server/dbgen/build.c
-    server/dbgen/bm_utils.c
-    server/dbgen/rnd.c
-    server/dbgen/print.c
-    server/dbgen/load_stub.c
-    server/dbgen/bcd2.c
-    server/dbgen/speed_seed.c
-    server/dbgen/text.c
-    server/dbgen/permute.c
-    server/dbgen/rng64.c)
+set(kuduClient_DIR "/mnt/local/tell/kudu_install/share/kuduClient/cmake")
+find_package(kuduClient REQUIRED)
+find_package(Threads)
+message(STATUS "Kudu header found at ${KUDU_CLIENT_INCLUDE_DIR}")
 
 set(SERVER_SRC
     server/main.cpp
-    server/Connection.cpp
-    server/Populate.cpp
-    server/CreateSchema.cpp)
+    server/Connection.cpp)
 
 set(CLIENT_SRC
     client/main.cpp
-    client/Client.cpp)
-
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/server/ch-tables/nation.tbl ${CMAKE_CURRENT_BINARY_DIR}/ch-tables/nation.tbl COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/server/ch-tables/region.tbl ${CMAKE_CURRENT_BINARY_DIR}/ch-tables/region.tbl COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/server/dbgen/dists.dss ${CMAKE_CURRENT_BINARY_DIR}/dists.dss COPYONLY)
- # just be sure, also copy it into main build directory
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/server/dbgen/dists.dss ${CMAKE_CURRENT_BINARY_DIR}/../../dists.dss COPYONLY)
-
-add_library(dbgen ${DB_GEN_SRC})
-target_link_libraries(dbgen m)
+    client/Client.cpp
+    client/CreateSchema.cpp)
 
 add_executable(tpch_server ${SERVER_SRC})
-target_link_libraries(tpch_server PRIVATE tpch_common dbgen)
-
-# Link against Jemalloc
 target_include_directories(tpch_server PRIVATE ${Jemalloc_INCLUDE_DIRS})
+target_include_directories(tpch_server PRIVATE ${KUDU_CLIENT_INCLUDE_DIR})
+target_link_libraries(tpch_server PRIVATE tpch_common)
 target_link_libraries(tpch_server PRIVATE ${Jemalloc_LIBRARIES})
+target_link_libraries(tpch_server PRIVATE ${Boost_LIBRARIES})
 
 add_executable(tpch_client ${CLIENT_SRC})
-target_link_libraries(tpch_client PRIVATE tpch_common)
-
-# Link against Jemalloc
 target_include_directories(tpch_client PRIVATE ${Jemalloc_INCLUDE_DIRS})
+target_include_directories(tpch_client PRIVATE ${KUDU_CLIENT_INCLUDE_DIR})
+target_link_libraries(tpch_client PRIVATE tpch_common  telldb crossbow_allocator)
+target_link_libraries(tpch_client PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(tpch_client PRIVATE ${Jemalloc_LIBRARIES})
+target_link_libraries(tpch_client PRIVATE ${Boost_LIBRARIES})

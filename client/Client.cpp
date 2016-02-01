@@ -54,27 +54,5 @@ void Client::execute(const typename Signature<C>::arguments &arg) {
       arg);
 }
 
-void Client::populate() { populate(mportionLower, mportionUpper); }
-
-void Client::populate(uint lower, uint upper) {
-    mCmds.execute<Command::POPULATE_PORTION>(
-      [this, lower, upper](const err_code &ec,
-                           const std::tuple<bool, crossbow::string> &res) {
-          if (ec) {
-              LOG_ERROR(ec.message());
-              return;
-          }
-          LOG_ASSERT(std::get<0>(res), std::get<1>(res));
-          LOG_INFO(("Populated portion " + crossbow::to_string(lower)));
-          if (lower == upper) {
-              mSocket.shutdown(Socket::shutdown_both);
-              mSocket.close();
-              return; // population done
-          }
-          populate(lower + 1, upper);
-      },
-      std::make_pair(lower, mScalingFactor));
-}
-
 
 } // namespace tpcc

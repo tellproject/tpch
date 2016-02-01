@@ -21,40 +21,30 @@
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
 #pragma once
-#include <random>
-#include <cstdint>
-#include <crossbow/string.hpp>
-#include <common/Util.hpp>
+
+namespace kudu {
+namespace client {
+
+class KuduSession;
+
+}
+}
 
 namespace tell {
 namespace db {
 
 class Transaction;
-class Counter;
 
-} // namespace db
-} // namespace tell
+}
+}
 
 namespace tpch {
 
-class Populator {
+template<class T>
+void createSchema(T& tx);
 
-public:
-    Populator() : mInitialized(false)
-    {}
-    void populateStaticTables(tell::db::Transaction& transaction);
-    void populatePortion(tell::db::Transaction& transaction, uint portionID, float scalingFactor);
-private:
-    void populateRegions(tell::db::Transaction& transaction);
-    void populateNations(tell::db::Transaction& transaction);
-    void setScalingFactor(float scalingFactor);
-    void populatePartAndPartSupp(tell::db::Transaction& transaction, uint portionID);
-    void populateSupplier(tell::db::Transaction& transaction, uint portionID);
-    void populateCustomer(tell::db::Transaction& transaction, uint portionID);
-    void populateOrdersAndLines(tell::db::Transaction& transaction, uint portionID);
-private:
-    bool mInitialized;
-};
+extern template void createSchema<kudu::client::KuduSession>(kudu::client::KuduSession&);
+extern template void createSchema<tell::db::Transaction>(tell::db::Transaction&);
 
-} // namespace tpch
+} // namespace tpcc
 
