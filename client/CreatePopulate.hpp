@@ -22,29 +22,37 @@
  */
 #pragma once
 
-namespace kudu {
-namespace client {
+#include <string>
 
-class KuduSession;
+#include <kudu/client/client.h>
+#include <telldb/TellDB.hpp>
 
-}
-}
+//namespace kudu {
+//namespace client {
 
-namespace tell {
-namespace db {
+//class KuduSession;
 
-class Transaction;
+//}
+//}
 
-}
-}
+//namespace tell {
+//namespace db {
+
+//class Transaction;
+
+//}
+//}
 
 namespace tpch {
 
-template<class T>
-void createSchema(T& tx);
+template<class ConnectionType, class FiberType>
+void createSchemaAndPopulate(std::string &storage, std::string &commitManager, std::string baseDir);
 
-extern template void createSchema<kudu::client::KuduSession>(kudu::client::KuduSession&);
-extern template void createSchema<tell::db::Transaction>(tell::db::Transaction&);
+using TellConnection = std::unique_ptr<tell::db::ClientManager<void>>;
+extern template void createSchemaAndPopulate<TellConnection, tell::db::TransactionFiber<void>>(std::string &storage, std::string &commitManager, std::string baseDir);
 
-} // namespace tpcc
+using KuduConnection = std::tr1::shared_ptr<kudu::client::KuduClient>;
+extern template void createSchemaAndPopulate<KuduConnection, std::thread>(std::string &storage, std::string &commitManager, std::string baseDir);
+
+} // namespace tpch
 

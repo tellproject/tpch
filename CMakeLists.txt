@@ -20,7 +20,7 @@ target_include_directories(tpch_common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(tpch_common PUBLIC ${Boost_INCLUDE_DIRS})
 target_include_directories(tpch_common PUBLIC ${Crossbow_INCLUDE_DIRS})
 target_link_libraries(tpch_common PUBLIC ${Boost_LIBRARIES})
-target_link_libraries(tpch_common PUBLIC crossbow_logger)
+target_link_libraries(tpch_common PUBLIC crossbow_logger telldb)
 
 set(kuduClient_DIR "/mnt/local/tell/kudu_install/share/kuduClient/cmake")
 find_package(kuduClient REQUIRED)
@@ -34,19 +34,19 @@ set(SERVER_SRC
 set(CLIENT_SRC
     client/main.cpp
     client/Client.cpp
-    client/CreateSchema.cpp)
+    client/CreatePopulate.cpp)
 
 add_executable(tpch_server ${SERVER_SRC})
 target_include_directories(tpch_server PRIVATE ${Jemalloc_INCLUDE_DIRS})
 target_include_directories(tpch_server PRIVATE ${KUDU_CLIENT_INCLUDE_DIR})
 target_link_libraries(tpch_server PRIVATE tpch_common)
 target_link_libraries(tpch_server PRIVATE ${Jemalloc_LIBRARIES})
-target_link_libraries(tpch_server PRIVATE ${Boost_LIBRARIES})
 
 add_executable(tpch_client ${CLIENT_SRC})
 target_include_directories(tpch_client PRIVATE ${Jemalloc_INCLUDE_DIRS})
 target_include_directories(tpch_client PRIVATE ${KUDU_CLIENT_INCLUDE_DIR})
-target_link_libraries(tpch_client PRIVATE tpch_common  telldb crossbow_allocator)
+target_compile_definitions(tpch_client PRIVATE TPCH_CLIENT)
+target_link_libraries(tpch_client PRIVATE kudu_client)
+target_link_libraries(tpch_client PRIVATE tpch_common  crossbow_allocator)
 target_link_libraries(tpch_client PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(tpch_client PRIVATE ${Jemalloc_LIBRARIES})
-target_link_libraries(tpch_client PRIVATE ${Boost_LIBRARIES})

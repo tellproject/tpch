@@ -32,6 +32,8 @@
 
 #include <common/Util.hpp>
 
+#include "CreatePopulate.hpp"
+
 #include "Client.hpp"
 
 using namespace crossbow::program_options;
@@ -62,7 +64,7 @@ int main(int argc, const char** argv) {
             , value<'o'>("out", &outFile, tag::description{"Path to the output file"})
             , value<'s'>("storage", &storage, tag::description{"address(es) of the storage nodes (only necessary for population)"})
             , value<'x'>("commit-manager", &commitManager, tag::description{"address of the commit manager (only necessary for population)"})
-            , value<'d'>("base-dir", &baseDir, tag::description{"Base directory to the generated tbl files (only necessary for population)"})
+            , value<'d'>("base-dir", &baseDir, tag::description{"Base directory to the generated tbl/upd/del files"})
             , value<-1>("exit", &exit, tag::description{"Quit server"})
             );
     try {
@@ -80,8 +82,6 @@ int main(int argc, const char** argv) {
         std::cerr << "No host\n";
         return 1;
     }
-
-    //todo: continue here with merging CreateSchema.main into this main...
 
     auto startTime = tpch::Clock::now();
     auto endTime = startTime + std::chrono::seconds(time);
@@ -131,10 +131,11 @@ int main(int argc, const char** argv) {
                 });
                 goto END;
             }
-        }
-
-        if (populate) {
-            //todo: population code
+        } else if (populate) {
+            if (use_kudu)
+                tpch::createSchemaAndPopulate<tpch::KuduConnection, std::thread>(storage, commitManager, baseDir);
+            else
+                tpch::createSchemaAndPopulate<tpch::TellConnection, tell::db::TransactionFiber<void>>(storage, commitManager, baseDir);
         } else {
             //todo: commands
         }

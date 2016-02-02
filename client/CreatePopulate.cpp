@@ -20,7 +20,7 @@
  *     Kevin Bocksrocker <kevin.bocksrocker@gmail.com>
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
-#include "CreateSchema.hpp"
+#include "CreatePopulate.hpp"
 
 #include <sstream>
 #include <fstream>
@@ -31,11 +31,7 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/date_time.hpp>
 
-#include <kudu/client/client.h>
-#include <telldb/Transaction.hpp>
-#include <telldb/TellDB.hpp>
 #include <crossbow/logger.hpp>
-#include <crossbow/program_options.hpp>
 
 namespace tpch {
 
@@ -274,7 +270,7 @@ void createRegion(T& tx) {
 }
 
 template<class T>
-void createSchema(T& tx) {
+void createTables(T& tx) {
     createPart(tx);
     createSupplier(tx);
     createPartsupp(tx);
@@ -285,8 +281,48 @@ void createSchema(T& tx) {
     createRegion(tx);
 }
 
-template void createSchema<kudu::client::KuduSession>(kudu::client::KuduSession&);
-template void createSchema<tell::db::Transaction>(tell::db::Transaction&);
+template<class T>
+void createSchema(T& connection);
+
+template<>
+void createSchema(KuduConnection& client) {
+    auto session = client->NewSession();
+    assertOk(session->SetFlushMode(kudu::client::KuduSession::MANUAL_FLUSH));
+    session->SetTimeoutMillis(60000);
+    createTables(*session);
+    assertOk(session->Close());
+}
+
+template<>
+void createSchema(TellConnection& clientManager) {
+    auto schemaFiber = clientManager->startTransaction([] (tell::db::Transaction& tx) {
+        createTables(tx);
+        tx.commit();
+    });
+    schemaFiber.wait();
+}
+
+template<class T>
+T getConnection(std::string &storage, std::string &commitMananger);
+
+template<>
+KuduConnection getConnection(std::string &storage, std::string &commitMananger) {
+    kudu::client::KuduClientBuilder clientBuilder;
+    clientBuilder.add_master_server_addr(storage);
+    std::tr1::shared_ptr<kudu::client::KuduClient> client;
+    clientBuilder.Build(&client);
+    return client;
+}
+
+template<>
+TellConnection getConnection(std::string &storage, std::string &commitManager) {
+    tell::store::ClientConfig clientConfig;
+    clientConfig.tellStore = clientConfig.parseTellStore(storage);
+    clientConfig.commitManager = crossbow::infinio::Endpoint(crossbow::infinio::Endpoint::ipv4(), commitManager.c_str());
+    clientConfig.numNetworkThreads = 7;
+    TellConnection clientManager(new tell::db::ClientManager<void>(clientConfig));
+    return clientManager;
+}
 
 struct date {
     int64_t value;
@@ -691,9 +727,83 @@ struct Populate {
 template struct Populate<Transaction>;
 template struct Populate<KuduSession>;
 
+template <class T>
+void populateTable(std::string &tableName, const uint64_t &startKey, const std::shared_ptr<std::stringstream> &data, T &populate) {
+    if (tableName == "part") {
+        populate.populatePart(*data, startKey);
+    } else if (tableName == "partsupp") {
+        populate.populatePartsupp(*data, startKey);
+    } else if (tableName == "supplier") {
+        populate.populateSupplier(*data, startKey);
+    } else if (tableName == "customer") {
+        populate.populateCustomer(*data, startKey);
+    } else if (tableName == "orders") {
+        populate.populateOrder(*data, startKey);
+    } else if (tableName == "lineitem") {
+        populate.populateLineitem(*data, startKey);
+    } else if (tableName == "nation") {
+        populate.populateNation(*data, startKey);
+    } else if (tableName == "region") {
+        populate.populateRegion(*data, startKey);
+    } else {
+        std::cerr << "Table " << tableName << " does not exist" << std::endl;
+        std::terminate();
+    }
+}
+
+template<class ConnectionType, class FiberType>
+void threaded_populate(ConnectionType &connection, std::queue<FiberType> &fibers,
+        std::string &tableName, const uint64_t &startKey, const std::shared_ptr<std::stringstream> &data);
+
+template<>
+void threaded_populate(KuduConnection &client, std::queue<std::thread> &threads,
+        std::string &tableName, const uint64_t &startKey, const std::shared_ptr<std::stringstream> &data) {
+    if (threads.size() >= 8) {
+        threads.front().join();
+        threads.pop();
+    }
+    threads.emplace([&client, &tableName, data, startKey] () {
+        auto session = client->NewSession();
+        assertOk(session->SetFlushMode(kudu::client::KuduSession::MANUAL_FLUSH));
+        session->SetTimeoutMillis(60000);
+        Populate<kudu::client::KuduSession> populate(*session);
+        populateTable(tableName, startKey, data, populate);
+        assertOk(session->Flush());
+        assertOk(session->Close());
+    });
+}
+
+template<>
+void threaded_populate(TellConnection &clientManager, std::queue<tell::db::TransactionFiber<void>> &fibers,
+        std::string &tableName, const uint64_t &startKey, const std::shared_ptr<std::stringstream> &data) {
+    if (fibers.size() >= 28) {
+        fibers.front().wait();
+        fibers.pop();
+    }
+    fibers.emplace(clientManager->startTransaction([&tableName, data, startKey] (tell::db::Transaction& tx) {
+        Populate<tell::db::Transaction> populate(tx);
+        populateTable(tableName, startKey, data, populate);
+        tx.commit();
+        std::cout << '.';
+        std::cout.flush();
+    }));
+}
+
 bool file_readable(const std::string& fileName) {
     std::ifstream in(fileName.c_str());
     return in.good();
+}
+
+template<class FiberType>
+void join(FiberType &fiber);
+
+template<>
+void join(tell::db::TransactionFiber<void> &fiber) {
+    fiber.wait();
+}
+
+void join(std::thread &thread) {
+    thread.join();
 }
 
 template<class Fun>
@@ -711,181 +821,48 @@ void getFiles(const std::string& baseDir, const std::string& tableName, Fun fun)
     }
 }
 
+template<class ConnectionType, class FiberType>
+void createSchemaAndPopulate(std::string &storage, std::string &commitManager, std::string baseDir) {
+    ConnectionType connection = getConnection<ConnectionType>(storage, commitManager);
+    createSchema(connection);
+
+    for (std::string tableName : {"part", "partsupp", "supplier", "customer", "orders", "lineitem", "nation", "region"}) {
+        getFiles(baseDir, tableName, [&connection, &tableName] (const std::string& fileName) {
+        std::cout << "Reading " << fileName << std::endl;
+        std::fstream in(fileName.c_str(), std::ios_base::in);
+        std::string line;
+
+        std::queue<FiberType> fibers;
+
+        uint64_t startKey = 0;
+        while (true) {
+            auto data = std::make_shared<std::stringstream>();
+            uint64_t count = 0;
+            while (std::getline(in, line) && count < 10000) {
+                *data << line << '\n';
+                ++count;
+            }
+            if (count == 0) {
+                break;
+            }
+            threaded_populate(connection, fibers, tableName, startKey, data);
+            startKey += count;
+        }
+        while (!fibers.empty()) {
+            join(fibers.front());
+            fibers.pop();
+        }
+
+        std::cout << std::endl << std::endl;
+        });
+    }
+    std::cout << "Done" << std::endl;
+    std::cout << '\a';
+}
+
+template void createSchemaAndPopulate<TellConnection, tell::db::TransactionFiber<void>>(std::string &storage, std::string &commitManager, std::string baseDir);
+template void createSchemaAndPopulate<KuduConnection, std::thread>(std::string &storage, std::string &commitManager, std::string baseDir);
+
 } // namespace tpch
 
-using namespace crossbow::program_options;
-
-int main(int argc, const char* argv[]) {
-    bool help = false;
-    bool use_kudu = false;
-    std::string storage = "localhost";
-    std::string commitManager;
-    std::string baseDir = "/mnt/local/tell/tpch_2_17_0/dbgen";
-    auto opts = create_options("tpch",
-            value<'h'>("help", &help, tag::description{"print help"}),
-            value<'S'>("storage", &storage, tag::description{"address(es) of the storage nodes"}),
-            value<'C'>("commit-manager", &commitManager, tag::description{"address of the commit manager"}),
-            value<'k'>("kudu", &use_kudu, tag::description{"use kudu instead of TellStore"}),
-            value<'d'>("base-dir", &baseDir, tag::description{"Base directory to the generated tbl files"})
-            );
-    try {
-        parse(opts, argc, argv);
-    } catch (argument_not_found& ex) {
-        std::cerr << ex.what() << std::endl;
-        print_help(std::cout, opts);
-        return 1;
-    }
-    if (help) {
-        print_help(std::cout, opts);
-        return 0;
-    }
-
-    if (use_kudu) {
-        kudu::client::KuduClientBuilder clientBuilder;
-        clientBuilder.add_master_server_addr(storage);
-        std::tr1::shared_ptr<kudu::client::KuduClient> client;
-        clientBuilder.Build(&client);
-        auto session = client->NewSession();
-        tpch::assertOk(session->SetFlushMode(kudu::client::KuduSession::MANUAL_FLUSH));
-        session->SetTimeoutMillis(60000);
-        tpch::createSchema(*session);
-        tpch::assertOk(session->Close());
-        for (std::string tableName : {"part", "partsupp", "supplier", "customer", "orders", "lineitem", "nation", "region"}) {
-            tpch::getFiles(baseDir, tableName, [&client, &tableName] (const std::string& fileName) {
-                std::cout << "Reading " << fileName << std::endl;
-                std::fstream in(fileName.c_str(), std::ios_base::in);
-                std::string line;
-
-                std::queue<std::thread> threads;
-                uint64_t startKey = 0;
-                while (true) {
-                    auto data = std::make_shared<std::stringstream>();
-                    uint64_t count = 0;
-                    while (std::getline(in, line) && count < 10000) {
-                        *data << line << '\n';
-                        ++count;
-                    }
-                    if (count == 0) {
-                        break;
-                    }
-                    if (threads.size() >= 8) {
-                        threads.front().join();
-                        threads.pop();
-                    }
-                    threads.emplace([&client, &tableName, data, startKey] () {
-                        auto session = client->NewSession();
-                        tpch::assertOk(session->SetFlushMode(kudu::client::KuduSession::MANUAL_FLUSH));
-                        session->SetTimeoutMillis(60000);
-                        tpch::Populate<kudu::client::KuduSession> populate(*session);
-                        if (tableName == "part") {
-                            populate.populatePart(*data, startKey);
-                        } else if (tableName == "partsupp") {
-                            populate.populatePartsupp(*data, startKey);
-                        } else if (tableName == "supplier") {
-                            populate.populateSupplier(*data, startKey);
-                        } else if (tableName == "customer") {
-                            populate.populateCustomer(*data, startKey);
-                        } else if (tableName == "orders") {
-                            populate.populateOrder(*data, startKey);
-                        } else if (tableName == "lineitem") {
-                            populate.populateLineitem(*data, startKey);
-                        } else if (tableName == "nation") {
-                            populate.populateNation(*data, startKey);
-                        } else if (tableName == "region") {
-                            populate.populateRegion(*data, startKey);
-                        } else {
-                            std::cerr << "Table " << tableName << " does not exist" << std::endl;
-                            std::terminate();
-                        }
-                        tpch::assertOk(session->Flush());
-                        tpch::assertOk(session->Close());
-                    });
-                    startKey += count;
-                }
-                while (!threads.empty()) {
-                    threads.front().join();
-                    threads.pop();
-                }
-
-                std::cout << std::endl << std::endl;
-            });
-        }
-        std::cout << "Done" << std::endl;
-        std::cout << '\a';
-    } else {
-        tell::store::ClientConfig clientConfig;
-        clientConfig.tellStore = clientConfig.parseTellStore(storage);
-        clientConfig.commitManager = crossbow::infinio::Endpoint(crossbow::infinio::Endpoint::ipv4(), commitManager.c_str());
-        clientConfig.numNetworkThreads = 7;
-        tell::db::ClientManager<void> clientManager(clientConfig);
-
-        auto createSchema = clientManager.startTransaction([] (tell::db::Transaction& tx) {
-            tpch::createSchema(tx);
-            tx.commit();
-        });
-        createSchema.wait();
-
-        for (std::string tableName : {"part", "partsupp", "supplier", "customer", "orders", "lineitem", "nation", "region"}) {
-            tpch::getFiles(baseDir, tableName, [&clientManager, &tableName] (const std::string& fileName) {
-                std::cout << "Reading " << fileName << std::endl;
-                std::fstream in(fileName.c_str(), std::ios_base::in);
-                std::string line;
-
-                std::queue<tell::db::TransactionFiber<void>> fibers;
-                uint64_t startKey = 0;
-                while (true) {
-                    auto data = std::make_shared<std::stringstream>();
-                    uint64_t count = 0;
-                    while (std::getline(in, line) && count < 10000) {
-                        *data << line << '\n';
-                        ++count;
-                    }
-                    if (count == 0) {
-                        break;
-                    }
-                    if (fibers.size() >= 28) {
-                        fibers.front().wait();
-                        fibers.pop();
-                    }
-                    fibers.emplace(clientManager.startTransaction([&tableName, data, startKey] (tell::db::Transaction& tx) {
-                        tpch::Populate<tell::db::Transaction> populate(tx);
-                        if (tableName == "part") {
-                            populate.populatePart(*data, startKey);
-                        } else if (tableName == "partsupp") {
-                            populate.populatePartsupp(*data, startKey);
-                        } else if (tableName == "supplier") {
-                            populate.populateSupplier(*data, startKey);
-                        } else if (tableName == "customer") {
-                            populate.populateCustomer(*data, startKey);
-                        } else if (tableName == "orders") {
-                            populate.populateOrder(*data, startKey);
-                        } else if (tableName == "lineitem") {
-                            populate.populateLineitem(*data, startKey);
-                        } else if (tableName == "nation") {
-                            populate.populateNation(*data, startKey);
-                        } else if (tableName == "region") {
-                            populate.populateRegion(*data, startKey);
-                        } else {
-                            std::cerr << "Table " << tableName << " does not exist" << std::endl;
-                            std::terminate();
-                        }
-                        tx.commit();
-                        std::cout << '.';
-                        std::cout.flush();
-                    }));
-                    startKey += count;
-                }
-                while (!fibers.empty()) {
-                    fibers.front().wait();
-                    fibers.pop();
-                }
-
-                std::cout << std::endl << std::endl;
-            });
-        }
-        std::cout << "Done" << std::endl;
-        std::cout << '\a';
-    }
-    return 0;
-}
 
