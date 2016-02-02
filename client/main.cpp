@@ -132,8 +132,14 @@ int main(int argc, const char** argv) {
                 goto END;
             }
         } else if (populate) {
-            if (use_kudu)
+            if (use_kudu) {
+#ifdef USE_KUDU
                 tpch::createSchemaAndPopulate<tpch::KuduConnection, std::thread>(storage, commitManager, baseDir);
+#else
+                std::cerr << "Code was not compiled for Kudu\n";
+                return 1;
+#endif
+            }
             else
                 tpch::createSchemaAndPopulate<tpch::TellConnection, tell::db::TransactionFiber<void>>(storage, commitManager, baseDir);
         } else {
