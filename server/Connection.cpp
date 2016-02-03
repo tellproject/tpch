@@ -22,6 +22,7 @@
  */
 #include "Connection.hpp"
 #include <telldb/Transaction.hpp>
+#include "Transactions.hpp"
 
 using namespace boost::asio;
 
@@ -32,6 +33,8 @@ class CommandImpl {
     boost::asio::io_service& mService;
     tell::db::ClientManager<void>& mClientManager;
     std::unique_ptr<tell::db::TransactionFiber<void>> mFiber;
+    Transactions mTransactions;
+
 public:
     CommandImpl(boost::asio::ip::tcp::socket& socket,
             boost::asio::io_service& service,
@@ -50,6 +53,34 @@ public:
     execute(const Callback callback) {
         mServer.quit();
         callback();
+    }
+
+    template<Command C, class Callback>
+    typename std::enable_if<C == Command::RF1, void>::type
+    execute(const typename Signature<C>::arguments& args, const Callback& callback) {
+        auto transaction = [this, args, callback](tell::db::Transaction& tx) {
+            typename Signature<C>::result res = mTransactions.rf1(tx, args);
+            mService.post([this, res, callback]() {
+                mFiber->wait();
+                mFiber.reset(nullptr);
+                callback(res);
+            });
+        };
+        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+    }
+
+    template<Command C, class Callback>
+    typename std::enable_if<C == Command::RF2, void>::type
+    execute(const typename Signature<C>::arguments& args, const Callback& callback) {
+        auto transaction = [this, args, callback](tell::db::Transaction& tx) {
+            typename Signature<C>::result res = mTransactions.rf2(tx, args);
+            mService.post([this, res, callback]() {
+                mFiber->wait();
+                mFiber.reset(nullptr);
+                callback(res);
+            });
+        };
+        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
     }
 
 };

@@ -27,12 +27,15 @@ target_link_libraries(tpch_common PUBLIC crossbow_logger telldb)
 set(kuduClient_DIR "/mnt/local/tell/kudu_install/share/kuduClient/cmake")
 set(SERVER_SRC
     server/main.cpp
-    server/Connection.cpp)
+    server/Connection.cpp
+    server/Transactions.cpp
+)
 
 set(CLIENT_SRC
     client/main.cpp
     client/Client.cpp
-    client/CreatePopulate.cpp)
+    client/CreatePopulate.cpp
+)
 
 set(USE_KUDU OFF CACHE BOOL "Build TPC-H additionally for Kudu")
 if(${USE_KUDU})
@@ -58,6 +61,6 @@ if(${USE_KUDU})
     target_link_libraries(tpch_client PRIVATE kudu_client)
 endif()
 target_include_directories(tpch_client PRIVATE ${Jemalloc_INCLUDE_DIRS})
-target_link_libraries(tpch_client PRIVATE tpch_common  crossbow_allocator)
+target_link_libraries(tpch_client PRIVATE tpch_common crossbow_allocator)
 target_link_libraries(tpch_client PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(tpch_client PRIVATE ${Jemalloc_LIBRARIES})

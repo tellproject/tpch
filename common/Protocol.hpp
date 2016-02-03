@@ -58,7 +58,7 @@
 
 namespace tpch {
 
-#define COMMANDS (EXIT)
+#define COMMANDS (EXIT, RF1, RF2)
 
 GEN_COMMANDS(Command, COMMANDS);
 
@@ -69,6 +69,140 @@ template<>
 struct Signature<Command::EXIT> {
     using result = void;
     using arguments = void;
+};
+
+struct Lineitem {
+    using is_serializable = crossbow::is_serializable;
+
+    int32_t orderkey;
+    int32_t linenumber;
+    int32_t partkey;
+    int32_t suppkey;
+    double quantity;
+    double extendedprice;
+    double discount;
+    double tax;
+    crossbow::string returnflag;
+    crossbow::string linestatus;
+    int64_t shipdate;
+    int64_t commitdate;
+    int64_t receiptdate;
+    crossbow::string shipinstruct;
+    crossbow::string shipmode;
+    crossbow::string comment;
+
+    template<class Archiver>
+    void operator&(Archiver& ar) {
+        ar & orderkey;
+        ar & linenumber;
+        ar & orderkey;
+        ar & linenumber;
+        ar & partkey;
+        ar & suppkey;
+        ar & quantity;
+        ar & extendedprice;
+        ar & discount;
+        ar & tax;
+        ar & returnflag;
+        ar & linestatus;
+        ar & shipdate;
+        ar & commitdate;
+        ar & receiptdate;
+        ar & shipinstruct;
+        ar & shipmode;
+        ar & comment;
+    }
+};
+
+struct Order {
+    using is_serializable = crossbow::is_serializable;
+
+    int32_t orderkey;
+    int32_t custkey;
+    crossbow::string orderstatus;
+    double totalprice;
+    int64_t orderdate;
+    crossbow::string orderpriority;
+    crossbow::string clerk;
+    int32_t shippriority;
+    crossbow::string comment;
+    std::vector<Lineitem> lineitems;
+
+    template<class Archiver>
+    void operator&(Archiver& ar) {
+        ar & orderkey;
+        ar & custkey;
+        ar & orderstatus;
+        ar & totalprice;
+        ar & orderdate;
+        ar &orderpriority;
+        ar & clerk;
+        ar & shippriority;
+        ar & comment;
+        ar & lineitems;
+    }
+};
+
+struct RF1In {
+    using is_serializable = crossbow::is_serializable;
+
+    std::vector<Order> orders;
+
+    template<class Archiver>
+    void operator&(Archiver& ar) {
+        ar & orders;
+    }
+};
+
+struct RF1Out {
+    using is_serializable = crossbow::is_serializable;
+    bool success = true;
+    crossbow::string error;
+    int32_t affectedRows = 0;
+
+    template<class Archiver>
+    void operator&(Archiver& ar) {
+        ar & success;
+        ar & error;
+        ar & affectedRows;
+    }
+};
+
+template<>
+struct Signature<Command::RF1> {
+    using result = RF1Out;
+    using arguments = RF1In;
+};
+
+struct RF2In {
+    using is_serializable = crossbow::is_serializable;
+
+    std::vector<int32_t> orderIds;
+
+    template<class Archiver>
+    void operator&(Archiver& ar) {
+        ar & orderIds;
+    }
+};
+
+struct RF2Out {
+    using is_serializable = crossbow::is_serializable;
+    bool success = true;
+    crossbow::string error;
+    int32_t affectedRows = 0;
+
+    template<class Archiver>
+    void operator&(Archiver& ar) {
+        ar & success;
+        ar & error;
+        ar & affectedRows;
+    }
+};
+
+template<>
+struct Signature<Command::RF2> {
+    using result = RF2Out;
+    using arguments = RF2In;
 };
 
 namespace impl {
