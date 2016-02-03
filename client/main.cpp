@@ -93,7 +93,7 @@ int main(int argc, const char** argv) {
         std::vector<tpch::Client> clients;
         clients.reserve(sumClients);
         for (decltype(sumClients) i = 0; i < sumClients; ++i) {
-            clients.emplace_back(service, endTime);
+            clients.emplace_back(service, endTime, uint(i));
         }
         for (size_t i = 0; i < hosts.size(); ++i) {
             auto h = hosts[i];
@@ -143,7 +143,9 @@ int main(int argc, const char** argv) {
             else
                 tpch::createSchemaAndPopulate<tpch::TellConnection, tell::db::TransactionFiber<void>>(storage, commitManager, baseDir);
         } else {
-            //todo: commands
+            for (auto& client : clients) {
+                client.run();
+            }
         }
 END:
         service.run();
@@ -155,6 +157,12 @@ END:
             for (const auto& e : queue) {
                 crossbow::string tName;
                 switch (e.transaction) {
+                case tpch::Command::RF1:
+                    tName = "RF1";
+                    break;
+                case tpch::Command::RF2:
+                    tName = "RF2";
+                    break;
                 case tpch::Command::EXIT:
                     assert(false);
                     break;

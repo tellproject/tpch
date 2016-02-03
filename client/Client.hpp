@@ -41,16 +41,21 @@ struct LogEntry {
     decltype(start) end;
 };
 
+static const std::string orderFilePrefix = "orders.tbl.u";
+static const std::string lineitemFilePrefix = "lineitem.tbl.u";
+
 class Client {
     using Socket = boost::asio::ip::tcp::socket;
     Socket mSocket;
     client::CommandsImpl mCmds;
+    uint mUpdateFileIndex;
     std::deque<LogEntry> mLog;
     decltype(Clock::now()) mEndTime;
 public:
-    Client(boost::asio::io_service& service, decltype(Clock::now()) endTime)
+    Client(boost::asio::io_service& service, decltype(Clock::now()) endTime, const uint &updateFileIndex)
         : mSocket(service)
         , mCmds(mSocket)
+        , mUpdateFileIndex(updateFileIndex)
         , mEndTime(endTime)
     {}
     Socket& socket() {
@@ -62,7 +67,7 @@ public:
     client::CommandsImpl& commands() {
         return mCmds;
     }
-
+    void run(); // executes RF1 (with 1500 inserted orders) after RF2 (the same 1500 orders deleted) repeatedly from input file
     const std::deque<LogEntry>& log() const { return mLog; }
 private:
     template<Command C>

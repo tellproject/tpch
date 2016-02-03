@@ -50,9 +50,20 @@ void Client::execute(const typename Signature<C>::arguments &arg) {
               LOG_ERROR("Transaction unsuccessful [error = %1%]", result.error);
           }
           mLog.push_back(LogEntry{result.success, result.error, C, now, end});
+          run();
       },
       arg);
 }
 
+void Client::run() {
+    LOG_DEBUG("Start RF1 Transaction");
+    RF1In rf1args;
+    // TODO: implement this
+    execute<Command::RF1>(rf1args);
+    RF2In rf2args;
+    // TODO: implement this
+    execute<Command::RF2>(rf2args);
+}
 
-} // namespace tpcc
+
+} // namespace tpch
