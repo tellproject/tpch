@@ -65,8 +65,16 @@ struct TableCreator<Transaction> {
         tx.createTable(name, schema);
     }
 
-    void setPrimaryKey(const std::vector<std::string>&) {
-        // we do not explicitely set the primary key on tell
+    void setPrimaryKey(const std::vector<std::string>& fieldNames) {
+        // we do not explicitely set the primary key on tell, but we misuse the
+        // function here to create an additional index and counter for lineitem
+        if (fieldNames[0][0] == 'l') {
+            schema.addIndex("l_orderkey_idx",
+                    std::make_pair(false, std::vector<tell::store::Schema::id_t>{
+                         schema.idOf("l_orderkey")
+                    }));
+            tx.createCounter("lineitem_idx_counter");
+        }
     }
 };
 
@@ -94,9 +102,13 @@ struct Populator<Transaction> {
     Transaction& tx;
     std::unordered_map<crossbow::string, Field> fields;
     tell::db::table_t tableId;
+    const bool isLineitemTable;
+    std::unique_ptr<Counter> lineitemCounter;
 
     Populator(Transaction& tx, const crossbow::string& name)
-        : tx(tx)
+        : tx(tx),
+          isLineitemTable(name == "lineitem"),
+          lineitemCounter(isLineitemTable ? new Counter (tx.getCounter("l_orderkey")) : nullptr)
     {
         auto f = tx.openTable(name);
         tableId = f.get();
@@ -138,7 +150,10 @@ struct Populator<Transaction> {
     }
 
     void apply(uint64_t key) {
-        tx.insert(tableId, tell::db::key_t{key}, fields);
+        if (isLineitemTable)
+            tx.insert(tableId, tell::db::key_t{lineitemCounter->next()}, fields);
+        else
+            tx.insert(tableId, tell::db::key_t{key}, fields);
         fields.clear();
     }
 
