@@ -89,12 +89,20 @@ int main(int argc, const char** argv) {
     try {
         auto hosts = tpch::split(host.c_str(), ',');
         io_service service;
+
+        // do client creation multi-threaded as it may take a while
         auto sumClients = hosts.size() * numClients;
         std::vector<tpch::Client> clients;
         clients.reserve(sumClients);
+        std::vector<std::thread> threads;
         for (decltype(sumClients) i = 0; i < sumClients; ++i) {
-            clients.emplace_back(service, endTime, uint(i));
+            threads.emplace_back([&, i](){
+                clients.emplace_back(service, endTime, baseDir, uint(i));
+            });
         }
+        for (auto &thread: threads)
+            thread.join();
+
         for (size_t i = 0; i < hosts.size(); ++i) {
             auto h = hosts[i];
             auto addr = tpch::split(h, ':');

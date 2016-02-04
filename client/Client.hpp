@@ -43,21 +43,21 @@ struct LogEntry {
 
 static const std::string orderFilePrefix = "orders.tbl.u";
 static const std::string lineitemFilePrefix = "lineitem.tbl.u";
+static const uint orderBatchSize = 1500;
 
 class Client {
     using Socket = boost::asio::ip::tcp::socket;
     Socket mSocket;
     client::CommandsImpl mCmds;
-    uint mUpdateFileIndex;
+    std::vector<Order> mOrders;
+    std::vector<int32_t> mDeletes;
+    uint mCurrentIdx;
     std::deque<LogEntry> mLog;
     decltype(Clock::now()) mEndTime;
+
 public:
-    Client(boost::asio::io_service& service, decltype(Clock::now()) endTime, const uint &updateFileIndex)
-        : mSocket(service)
-        , mCmds(mSocket)
-        , mUpdateFileIndex(updateFileIndex)
-        , mEndTime(endTime)
-    {}
+    Client(boost::asio::io_service& service, decltype(Clock::now()) endTime, const std::string &baseDir, const uint &updateFileIndex);
+
     Socket& socket() {
         return mSocket;
     }
