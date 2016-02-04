@@ -94,34 +94,40 @@ RF2Out Transactions::rf2(tell::db::Transaction &tx, const RF2In &in)
         auto lTable = lFuture.get();
         auto oTable = oFuture.get();
 
-        std::vector<Future<Tuple>> oTtupleFutures;
-        oTtupleFutures.reserve(in.orderIds.size());
+        std::vector<Future<Tuple>> oTupleFutures;
+        oTupleFutures.reserve(in.orderIds.size());
         std::vector<tell::db::key_t> orderKeys;
         orderKeys.reserve(in.orderIds.size());
 
         // get futures in revers order
         for (auto orderIdIter = in.orderIds.rbegin(); orderIdIter < in.orderIds.rend(); ++orderIdIter) {
             orderKeys.emplace_back(tell::db::key_t{uint64_t(*orderIdIter)});
-            oTtupleFutures.emplace_back(tx.get(oTable, orderKeys.back()));
+            oTupleFutures.emplace_back(tx.get(oTable, orderKeys.back()));
         }
 
         auto orderKeyIter = orderKeys.begin();
         // get the actual values in reverse reverse = actual order
-        for (auto iter = oTtupleFutures.rbegin();
-                    iter < oTtupleFutures.rend(); ++iter, ++orderKeyIter) {
-            // remove lineitem
-            tx.remove(oTable, *orderKeyIter, iter->get());
+        for (auto iter = oTupleFutures.rbegin();
+                    iter < oTupleFutures.rend(); ++iter, ++orderKeyIter) {
+            auto &orderKey = *orderKeyIter;
+            // remove order
+            tx.remove(oTable, orderKey, iter->get());
             result.affectedRows++;
-            // remove all corresponding keys
-            auto lineIter = tx.lower_bound(lTable, "l_orderkey_idx", {Field(int32_t(*orderKeyIter))});
-            while (!lineIter.done()) {
-                auto & lineitem = tx.get(lTable, lineIter.value()).get();
-                if (lineitem["l_orderkey"] == int32_t(*orderKeyIter)) {
-                    tx.remove(lTable, *orderKeyIter, lineitem);
-                    result.affectedRows++;
-                } else
-                    break;
+            // collect tuple futures for lineitems that might get deleted
+            std::vector<Future<Tuple>> lTupleFutures;
+            auto lineIter = tx.lower_bound(lTable, "l_orderkey_idx", {Field(int32_t(orderKey))});
+            uint counter = 0;
+            while (!lineIter.done() && counter++ < 7) {
+                lTupleFutures.emplace_back(tx.get(lTable, lineIter.value()));
                 lineIter.next();
+            }
+            // delete lineitems if necessary
+            for (auto lFutureIter = lTupleFutures.rbegin(); lFutureIter < lTupleFutures.rend(); ++lFutureIter) {
+                auto & lineitem = lFutureIter->get();
+                if (lineitem["l_orderkey"] == int32_t(orderKey)) {
+                    tx.remove(lTable, orderKey, lineitem);
+                    result.affectedRows++;
+                }
             }
         }
 
