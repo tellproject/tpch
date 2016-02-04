@@ -85,15 +85,27 @@ public:
 
 };
 
-Connection::Connection(boost::asio::io_service& service, tell::db::ClientManager<void>& clientManager)
+template<>
+Connection<TellClient>::Connection(boost::asio::io_service& service, TellClient &client)
     : mSocket(service)
-    , mImpl(new CommandImpl(mSocket, service, clientManager))
+    , mImpl(new CommandImpl(mSocket, service, *client))
 {}
 
-Connection::~Connection() = default;
+template<>
+Connection<TellClient>::~Connection() = default;
 
-void Connection::run() {
+template<>
+void Connection<TellClient>::run() {
     mImpl->run();
+}
+
+template<>
+TellClient getClient(std::string &storage, std::string &commitManager) {
+    tell::store::ClientConfig clientConfig;
+    clientConfig.tellStore = clientConfig.parseTellStore(storage);
+    clientConfig.commitManager = crossbow::infinio::Endpoint(crossbow::infinio::Endpoint::ipv4(), commitManager.c_str());
+    TellClient clientManager(new tell::db::ClientManager<void>(clientConfig));
+    return clientManager;
 }
 
 } // namespace tpch

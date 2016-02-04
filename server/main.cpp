@@ -33,18 +33,19 @@
 using namespace crossbow::program_options;
 using namespace boost::asio;
 
+template<class T>
 void accept(boost::asio::io_service &service,
         boost::asio::ip::tcp::acceptor &a,
-        tell::db::ClientManager<void>& clientManager) {
-    auto conn = new tpch::Connection(service, clientManager);
-    a.async_accept(conn->socket(), [conn, &service, &a, &clientManager](const boost::system::error_code &err) {
+        T& client) {
+    auto conn = new tpch::Connection<T>(service, client);
+    a.async_accept(conn->socket(), [conn, &service, &a, &client](const boost::system::error_code &err) {
         if (err) {
             delete conn;
             LOG_ERROR(err.message());
             return;
         }
         conn->run();
-        accept(service, a, clientManager);
+        accept(service, a, client);
     });
 }
 
@@ -53,9 +54,10 @@ int main(int argc, const char** argv) {
     std::string host;
     std::string port("8713");
     std::string logLevel("DEBUG");
-    crossbow::string commitManager;
-    crossbow::string storageNodes;
+    std::string commitManager;
+    std::string storageNodes;
     tell::store::ClientConfig config;
+    bool useKudu = false;
     auto opts = create_options("tpch_server",
             value<'h'>("help", &help, tag::description{"print help"}),
             value<'H'>("host", &host, tag::description{"Host to bind to"}),
@@ -80,9 +82,6 @@ int main(int argc, const char** argv) {
     crossbow::allocator::init();
 
     crossbow::logger::logger->config.level = crossbow::logger::logLevelFromString(logLevel);
-    config.commitManager = config.parseCommitManager(commitManager);
-    config.tellStore = config.parseTellStore(storageNodes);
-    tell::db::ClientManager<void> clientManager(config);
     try {
         io_service service;
         boost::asio::io_service::work work(service);
@@ -115,8 +114,14 @@ int main(int argc, const char** argv) {
             return 1;
         }
         a.listen();
+
         // we do not need to delete this object, it will delete itself
-        accept(service, a, clientManager);
+        if (useKudu) {
+
+        } else {
+            tpch::TellClient client = tpch::getClient<tpch::TellClient>(storageNodes, commitManager);
+            accept(service, a, client);
+        }
         service.run();
     } catch (std::exception& e) {
         std::cerr << e.what() << std::endl;

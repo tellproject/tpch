@@ -23,24 +23,39 @@
 #pragma once
 #include <vector>
 #include <boost/asio.hpp>
+#include <memory>
 
 #include <common/Protocol.hpp>
 
 #include <telldb/TellDB.hpp>
 
+#ifdef USE_KUDU
+#include <kudu/client/client.h>
+#endif
+
 namespace tpch {
+
+using TellClient = std::unique_ptr<tell::db::ClientManager<void>>;
+
+#ifdef USE_KUDU
+using KuduClient = std::tr1::shared_ptr<kudu::client::KuduClient>;
+#endif
 
 class CommandImpl;
 
+template <class T>  // TellClient or KuduClient
 class Connection {
     boost::asio::ip::tcp::socket mSocket;
     std::unique_ptr<CommandImpl> mImpl;
 public:
-    Connection(boost::asio::io_service& service, tell::db::ClientManager<void>& clientManager);
+    Connection(boost::asio::io_service& service, T& client);
     ~Connection();
     decltype(mSocket)& socket() { return mSocket; }
     void run();
 };
+
+template<class T>
+T getClient(std::string &storage, std::string &commitMananger);
 
 } // namespace tpch
 

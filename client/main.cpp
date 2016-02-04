@@ -50,8 +50,8 @@ int main(int argc, const char** argv) {
     std::string outFile("out.csv");
     size_t numClients = 1;
     unsigned time = 5*60;
-    std::string storage = "localhost";  // used only for population
-    std::string commitManager;  // used only for population
+    std::string storage = "localhost";          // used only for population
+    std::string commitManager = "localhost";    // used only for population
     std::string baseDir = "/mnt/local/tell/tpch_2_17_0/dbgen"; // used only for population
     bool exit = false;
     auto opts = create_options("tpch_client",
@@ -62,7 +62,7 @@ int main(int argc, const char** argv) {
             , value<'P'>("populate", &populate, tag::description{"Populate the database"})
             , value<'t'>("time", &time, tag::description{"Duration of the benchmark in seconds"})
             , value<'o'>("out", &outFile, tag::description{"Path to the output file"})
-            , value<'s'>("storage", &storage, tag::description{"address(es) of the storage nodes (only necessary for population)"})
+            , value<'s'>("storage", &storage, tag::description{"address(es) of the storage nodes, separated by semicolon (only necessary for population)"})
             , value<'x'>("commit-manager", &commitManager, tag::description{"address of the commit manager (only necessary for population)"})
             , value<'d'>("base-dir", &baseDir, tag::description{"Base directory to the generated tbl/upd/del files"})
             , value<-1>("exit", &exit, tag::description{"Quit server"})
