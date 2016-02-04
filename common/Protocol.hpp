@@ -75,9 +75,9 @@ struct Lineitem {
     using is_serializable = crossbow::is_serializable;
 
     int32_t orderkey;
-    int32_t linenumber;
     int32_t partkey;
     int32_t suppkey;
+    int32_t linenumber;
     double quantity;
     double extendedprice;
     double discount;
