@@ -41,12 +41,13 @@ using TellClient = std::unique_ptr<tell::db::ClientManager<void>>;
 using KuduClient = std::tr1::shared_ptr<kudu::client::KuduClient>;
 #endif
 
+template <class T>
 class CommandImpl;
 
 template <class T>  // TellClient or KuduClient
 class Connection {
     boost::asio::ip::tcp::socket mSocket;
-    std::unique_ptr<CommandImpl> mImpl;
+    std::unique_ptr<CommandImpl<T>> mImpl;
 public:
     Connection(boost::asio::io_service& service, T& client);
     ~Connection();

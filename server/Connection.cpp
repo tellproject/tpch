@@ -28,8 +28,9 @@ using namespace boost::asio;
 
 namespace tpch {
 
-class CommandImpl {
-    server::Server<CommandImpl> mServer;
+template<>
+class CommandImpl<TellClient> {
+    server::Server<CommandImpl<TellClient>> mServer;
     boost::asio::io_service& mService;
     tell::db::ClientManager<void>& mClientManager;
     std::unique_ptr<tell::db::TransactionFiber<void>> mFiber;
@@ -46,6 +47,10 @@ public:
 
     void run() {
         mServer.run();
+    }
+
+    void close() {
+        // todo: implement
     }
 
     template<Command C, class Callback>
@@ -88,7 +93,7 @@ public:
 template<>
 Connection<TellClient>::Connection(boost::asio::io_service& service, TellClient &client)
     : mSocket(service)
-    , mImpl(new CommandImpl(mSocket, service, *client))
+    , mImpl(new CommandImpl<TellClient>(mSocket, service, *client))
 {}
 
 template<>

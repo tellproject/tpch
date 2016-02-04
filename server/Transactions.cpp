@@ -29,6 +29,7 @@ namespace tpch {
 RF1Out Transactions::rf1(tell::db::Transaction &tx, const RF1In &in)
 {
     RF1Out result;
+
     try {
         auto oFuture = tx.openTable("orders");
         auto lFuture = tx.openTable("lineitem");
@@ -56,9 +57,9 @@ RF1Out Transactions::rf1(tell::db::Transaction &tx, const RF1In &in)
                 tx.insert(lTable, tell::db::key_t{lineitemCounter.next()},
                     {{
                     {"l_orderkey", line.orderkey},
-                    {"l_linenumber", line.linenumber},
                     {"l_partkey", line.partkey},
                     {"l_suppkey", line.suppkey},
+                    {"l_linenumber", line.linenumber},
                     {"l_quantity", line.quantity},
                     {"l_extendedprice", line.extendedprice},
                     {"l_discount", line.discount},
@@ -80,12 +81,14 @@ RF1Out Transactions::rf1(tell::db::Transaction &tx, const RF1In &in)
         result.success = false;
         result.error = ex.what();
     }
+
     return result;
 }
 
 RF2Out Transactions::rf2(tell::db::Transaction &tx, const RF2In &in)
 {
     RF2Out result;
+
     try {
         auto oFuture = tx.openTable("orders");
         auto lFuture = tx.openTable("lineitem");
@@ -134,6 +137,7 @@ RF2Out Transactions::rf2(tell::db::Transaction &tx, const RF2In &in)
         result.success = false;
         result.error = ex.what();
     }
+
     return result;
 }
 

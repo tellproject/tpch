@@ -45,9 +45,16 @@ if(${USE_KUDU})
 
     add_definitions( -DUSE_KUDU )
 
+    set(SERVER_SRC
+        ${SERVER_SRC}
+        server/TransactionsKudu.cpp
+        server/ConnectionKudu.cpp
+    )
+
     set(CLIENT_SRC
         ${CLIENT_SRC}
-        client/CreatePopulateKudu.cpp)
+        client/CreatePopulateKudu.cpp
+    )
 endif()
 
 add_executable(tpch_server ${SERVER_SRC})
@@ -56,11 +63,14 @@ target_link_libraries(tpch_server PRIVATE tpch_common)
 target_link_libraries(tpch_server PRIVATE ${Jemalloc_LIBRARIES})
 
 add_executable(tpch_client ${CLIENT_SRC})
-if(${USE_KUDU})
-    target_include_directories(tpch_client PRIVATE ${KUDU_CLIENT_INCLUDE_DIR})
-    target_link_libraries(tpch_client PRIVATE kudu_client)
-endif()
 target_include_directories(tpch_client PRIVATE ${Jemalloc_INCLUDE_DIRS})
 target_link_libraries(tpch_client PRIVATE tpch_common crossbow_allocator)
 target_link_libraries(tpch_client PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(tpch_client PRIVATE ${Jemalloc_LIBRARIES})
+
+if(${USE_KUDU})
+    target_include_directories(tpch_server PRIVATE ${KUDU_CLIENT_INCLUDE_DIR})
+    target_link_libraries(tpch_server PRIVATE kudu_client)
+    target_include_directories(tpch_client PRIVATE ${KUDU_CLIENT_INCLUDE_DIR})
+    target_link_libraries(tpch_client PRIVATE kudu_client)
+endif()
