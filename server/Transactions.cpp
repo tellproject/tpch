@@ -81,7 +81,6 @@ RF1Out Transactions::rf1(tell::db::Transaction &tx, const RF1In &in)
         result.error = ex.what();
     }
     return result;
-
 }
 
 RF2Out Transactions::rf2(tell::db::Transaction &tx, const RF2In &in)
