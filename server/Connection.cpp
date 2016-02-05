@@ -29,7 +29,11 @@ using namespace boost::asio;
 namespace tpch {
 
 template<>
+Connection<TellClient>::~Connection();
+
+template<>
 class CommandImpl<TellClient> {
+    Connection<TellClient> *mConnection;
     server::Server<CommandImpl<TellClient>> mServer;
     boost::asio::io_service& mService;
     tell::db::ClientManager<void>& mClientManager;
@@ -37,10 +41,14 @@ class CommandImpl<TellClient> {
     Transactions mTransactions;
 
 public:
-    CommandImpl(boost::asio::ip::tcp::socket& socket,
+    CommandImpl(
+            Connection<TellClient> *connection,
+            boost::asio::ip::tcp::socket& socket,
             boost::asio::io_service& service,
-            tell::db::ClientManager<void>& clientManager)
-        : mServer(*this, socket)
+            tell::db::ClientManager<void>& clientManager
+    )
+        : mConnection(connection)
+        , mServer(*this, socket)
         , mService(service)
         , mClientManager(clientManager)
     {}
@@ -50,7 +58,7 @@ public:
     }
 
     void close() {
-        // todo: implement
+         delete mConnection;
     }
 
     template<Command C, class Callback>
@@ -93,7 +101,7 @@ public:
 template<>
 Connection<TellClient>::Connection(boost::asio::io_service& service, TellClient &client)
     : mSocket(service)
-    , mImpl(new CommandImpl<TellClient>(mSocket, service, *client))
+    , mImpl(new CommandImpl<TellClient>(this, mSocket, service, *client))
 {}
 
 template<>

@@ -40,15 +40,20 @@ void assertOk(kudu::Status status) {
 using Session = std::tr1::shared_ptr<kudu::client::KuduSession>;
 
 template<>
+Connection<KuduClient>::~Connection();
+
+template<>
 class CommandImpl<KuduClient> {
+    Connection<KuduClient> *mConnection;
     boost::asio::ip::tcp::socket& mSocket;
     server::Server<CommandImpl<KuduClient>> mServer;
     Session mSession;
     TransactionsKudu mTransactions;
 
 public:
-    CommandImpl(boost::asio::ip::tcp::socket& socket, KuduClient &client)
-        : mSocket(socket)
+    CommandImpl(Connection<KuduClient> *connection, boost::asio::ip::tcp::socket& socket, KuduClient &client)
+        : mConnection(connection)
+        , mSocket(socket)
         , mServer(*this, mSocket)
         , mSession(client->NewSession())
     {
@@ -61,7 +66,7 @@ public:
     }
 
     void close() {
-        // todo: implement
+        delete mConnection;
     }
 
     template<Command C, class Callback>
@@ -87,7 +92,7 @@ public:
 template<>
 Connection<KuduClient>::Connection(boost::asio::io_service& service, KuduClient &client)
     : mSocket(service)
-    , mImpl(new CommandImpl<KuduClient>(mSocket, client))
+    , mImpl(new CommandImpl<KuduClient>(this, mSocket, client))
 {}
 
 template<>
