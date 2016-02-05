@@ -426,7 +426,7 @@ private:
                         if (ec) {
                             std::cerr << ec.message() << std::endl;
                             mSocket.close();
-                            delete this;
+                            mImpl.close();
                             return;
                         }
                         read(0);
@@ -457,7 +457,7 @@ private:
                     if (ec) {
                         std::cerr << ec.message() << std::endl;
                         mSocket.close();
-                        delete this;
+                        mImpl.close();
                         return;
                     }
                     read(bytes_read + br);
