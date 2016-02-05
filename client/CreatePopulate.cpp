@@ -83,7 +83,7 @@ void createSchema(TellConnection& clientManager) {
     auto schemaFiber = clientManager->startTransaction([] (tell::db::Transaction& tx) {
         createTables(tx);
         tx.commit();
-    });
+    }, tell::store::TransactionType::READ_WRITE);
     schemaFiber.wait();
 }
 
@@ -187,7 +187,7 @@ void threaded_populate(TellConnection &clientManager, std::queue<tell::db::Trans
         tx.commit();
         std::cout << '.';
         std::cout.flush();
-    }));
+    }, tell::store::TransactionType::READ_WRITE));
 }
 
 template<>

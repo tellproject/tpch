@@ -139,7 +139,8 @@ void Client::run() {
     if (mDoInsert) {
         LOG_DEBUG("Start RF1 Transaction");
         RF1In rf1args ({std::vector<Order>(&mOrders[mCurrentIdx], &mOrders[endIdx])});
-        LOG_DEBUG("Input has " + std::to_string(rf1args.orders.size()) + " orders.");
+        LOG_DEBUG("Input has " + std::to_string(rf1args.orders.size()) + " orders. First order in batch has ID "
+                  + std::to_string(rf1args.orders[0].orderkey) + ".");
         mDoInsert = false;
         execute<Command::RF1>(rf1args);
     } else {
@@ -151,6 +152,5 @@ void Client::run() {
         execute<Command::RF2>(rf2args);
     }
 }
-
 
 } // namespace tpch
