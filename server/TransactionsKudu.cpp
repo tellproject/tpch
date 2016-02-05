@@ -23,6 +23,8 @@
 
 #include "TransactionsKudu.hpp"
 
+#include <kudu/client/row_result.h>
+
 #include <crossbow/logger.hpp>
 
 void assertOk(kudu::Status status) {
