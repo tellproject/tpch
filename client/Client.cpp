@@ -46,12 +46,12 @@ Client::Client(boost::asio::io_service& service, decltype(Clock::now()) endTime,
     // open order file
     std::string fName = baseDir + "/" + orderFilePrefix + std::to_string(updateFileIndex);
     if (!file_readable(fName))
-        LOG_ERROR("Error: file " + fName + "does not exist!");
+        LOG_ERROR("Error: file " + fName + " does not exist!");
     std::fstream orderIn(fName.c_str(), std::ios_base::in);
 
     fName = baseDir + "/" + lineitemFilePrefix + std::to_string(updateFileIndex);
     if (!file_readable(fName))
-        LOG_ERROR("Error: file " + fName + "does not exist!");
+        LOG_ERROR("Error: file " + fName + " does not exist!");
     std::fstream lineItemIn(fName.c_str(), std::ios_base::in);
 
     // create order tuples

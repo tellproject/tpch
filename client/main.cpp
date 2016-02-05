@@ -84,106 +84,109 @@ int main(int argc, const char** argv) {
         return 1;
     }
 
-    auto startTime = tpch::Clock::now();
-    auto endTime = startTime + std::chrono::seconds(time);
-    crossbow::logger::logger->config.level = crossbow::logger::logLevelFromString(logLevel);
-    try {
-        auto hosts = tpch::split(host.c_str(), ',');
-        io_service service;
-
-        // do client creation multi-threaded as it may take a while
-        auto sumClients = hosts.size() * numClients;
-        std::vector<tpch::Client> clients;
-        clients.reserve(sumClients);
-        std::vector<std::thread> threads;
-        for (decltype(sumClients) i = 0; i < sumClients; ++i) {
-            threads.emplace_back([&, i](){
-                clients.emplace_back(service, endTime, baseDir, uint(i));
-            });
-        }
-        for (auto &thread: threads)
-            thread.join();
-
-        for (size_t i = 0; i < hosts.size(); ++i) {
-            auto h = hosts[i];
-            auto addr = tpch::split(h, ':');
-            assert(addr.size() <= 2);
-            auto p = addr.size() == 2 ? addr[1] : port;
-            ip::tcp::resolver resolver(service);
-            ip::tcp::resolver::iterator iter;
-            if (host == "") {
-                iter = resolver.resolve(ip::tcp::resolver::query(p));
-            } else {
-                iter = resolver.resolve(ip::tcp::resolver::query(addr[0], p));
-            }
-            for (unsigned j = 0; j < numClients; ++j) {
-                LOG_INFO("Connected to client " + crossbow::to_string(i*numClients + j));
-                boost::asio::connect(clients[i*numClients + j].socket(), iter);
-            }
-        }
-
-        {
-            auto t = std::time(nullptr);
-            std::string dateString(20, '\0');
-            auto len = std::strftime(&dateString.front(), 20, "%T", std::localtime(&t));
-            dateString.resize(len);
-            LOG_INFO("Starting client at %1%", dateString);
-        }
-
-        if (exit) {
-            for (auto& client : clients) {
-                auto& cmds = client.commands();
-                cmds.execute<tpch::Command::EXIT>([](const err_code& ec){
-                    if (ec) {
-                        std::cerr << "ERROR: " << ec.message() << std::endl;
-                    }
-                });
-                goto END;
-            }
-        } else if (populate) {
-            if (use_kudu) {
+    if (populate) {
+        if (use_kudu) {
 #ifdef USE_KUDU
-                tpch::createSchemaAndPopulate<tpch::KuduConnection, std::thread>(storage, commitManager, baseDir);
+            tpch::createSchemaAndPopulate<tpch::KuduConnection, std::thread>(storage, commitManager, baseDir);
 #else
-                std::cerr << "Code was not compiled for Kudu\n";
-                return 1;
+            std::cerr << "Code was not compiled for Kudu\n";
+            return 1;
 #endif
-            } else
-                tpch::createSchemaAndPopulate<tpch::TellConnection, tell::db::TransactionFiber<void>>(storage, commitManager, baseDir);
-        } else {
-            for (auto& client : clients) {
-                client.run();
+        } else
+            tpch::createSchemaAndPopulate<tpch::TellConnection, tell::db::TransactionFiber<void>>(storage, commitManager, baseDir);
+    } else {
+
+        auto startTime = tpch::Clock::now();
+        auto endTime = startTime + std::chrono::seconds(time);
+        crossbow::logger::logger->config.level = crossbow::logger::logLevelFromString(logLevel);
+        try {
+            auto hosts = tpch::split(host.c_str(), ',');
+            io_service service;
+
+            // do client creation multi-threaded as it may take a while
+            auto sumClients = hosts.size() * numClients;
+            std::vector<tpch::Client> clients;
+            clients.reserve(sumClients);
+            std::vector<std::thread> threads;
+            for (decltype(sumClients) i = 0; i < sumClients; ++i) {
+                threads.emplace_back([&, i](){
+                    clients.emplace_back(service, endTime, baseDir, uint(i));
+                });
             }
-        }
-END:
-        service.run();
-        LOG_INFO("Done, writing results");
-        std::ofstream out(outFile.c_str());
-        out << "start,end,transaction,success,error\n";
-        for (const auto& client : clients) {
-            const auto& queue = client.log();
-            for (const auto& e : queue) {
-                crossbow::string tName;
-                switch (e.transaction) {
-                case tpch::Command::RF1:
-                    tName = "RF1";
-                    break;
-                case tpch::Command::RF2:
-                    tName = "RF2";
-                    break;
-                case tpch::Command::EXIT:
-                    assert(false);
-                    break;
+            for (auto &thread: threads)
+                thread.join();
+
+            for (size_t i = 0; i < hosts.size(); ++i) {
+                auto h = hosts[i];
+                auto addr = tpch::split(h, ':');
+                assert(addr.size() <= 2);
+                auto p = addr.size() == 2 ? addr[1] : port;
+                ip::tcp::resolver resolver(service);
+                ip::tcp::resolver::iterator iter;
+                if (host == "") {
+                    iter = resolver.resolve(ip::tcp::resolver::query(p));
+                } else {
+                    iter = resolver.resolve(ip::tcp::resolver::query(addr[0], p));
                 }
-                out << std::chrono::duration_cast<std::chrono::milliseconds>(e.start - startTime).count() << ','
-                    << std::chrono::duration_cast<std::chrono::milliseconds>(e.end - startTime).count() << ','
-                    << tName << ','
-                    << (e.success ? "true" : "false") << ','
-                    << e.error << std::endl;
+                for (unsigned j = 0; j < numClients; ++j) {
+                    LOG_INFO("Connected to client " + crossbow::to_string(i*numClients + j));
+                    boost::asio::connect(clients[i*numClients + j].socket(), iter);
+                }
             }
+
+            {
+                auto t = std::time(nullptr);
+                std::string dateString(20, '\0');
+                auto len = std::strftime(&dateString.front(), 20, "%T", std::localtime(&t));
+                dateString.resize(len);
+                LOG_INFO("Starting client at %1%", dateString);
+            }
+
+            if (exit) {
+                for (auto& client : clients) {
+                    auto& cmds = client.commands();
+                    cmds.execute<tpch::Command::EXIT>([](const err_code& ec){
+                        if (ec) {
+                            std::cerr << "ERROR: " << ec.message() << std::endl;
+                        }
+                    });
+                    goto END;
+                }
+            } else {
+                for (auto& client : clients) {
+                    client.run();
+                }
+            }
+END:
+            service.run();
+            LOG_INFO("Done, writing results");
+            std::ofstream out(outFile.c_str());
+            out << "start,end,transaction,success,error\n";
+            for (const auto& client : clients) {
+                const auto& queue = client.log();
+                for (const auto& e : queue) {
+                    crossbow::string tName;
+                    switch (e.transaction) {
+                    case tpch::Command::RF1:
+                        tName = "RF1";
+                        break;
+                    case tpch::Command::RF2:
+                        tName = "RF2";
+                        break;
+                    case tpch::Command::EXIT:
+                        assert(false);
+                        break;
+                    }
+                    out << std::chrono::duration_cast<std::chrono::milliseconds>(e.start - startTime).count() << ','
+                        << std::chrono::duration_cast<std::chrono::milliseconds>(e.end - startTime).count() << ','
+                        << tName << ','
+                        << (e.success ? "true" : "false") << ','
+                        << e.error << std::endl;
+                }
+            }
+            std::cout << '\a';
+        } catch (std::exception& e) {
+            std::cerr << e.what() << std::endl;
         }
-        std::cout << '\a';
-    } catch (std::exception& e) {
-        std::cerr << e.what() << std::endl;
     }
 }
