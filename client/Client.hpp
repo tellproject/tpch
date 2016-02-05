@@ -52,6 +52,7 @@ class Client {
     std::vector<Order> mOrders;
     std::vector<int32_t> mDeletes;
     uint mCurrentIdx;
+    bool mDoInsert; // true for RF1, false for RF2
     std::deque<LogEntry> mLog;
     decltype(Clock::now()) mEndTime;
 

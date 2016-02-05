@@ -181,6 +181,7 @@ namespace tpch {
 RF1Out TransactionsKudu::rf1(kudu::client::KuduSession &session, const RF1In &in)
 {
     RF1Out result;
+    LOG_DEBUG("Starting RF1 with" + std::to_string(in.orders.size()));
 
     try {
         std::tr1::shared_ptr<KuduTable> oTable;
@@ -236,6 +237,7 @@ RF1Out TransactionsKudu::rf1(kudu::client::KuduSession &session, const RF1In &in
 RF2Out TransactionsKudu::rf2(kudu::client::KuduSession &session, const RF2In &in)
 {
     RF2Out result;
+    LOG_DEBUG("Starting RF2 with" + std::to_string(in.orderIds.size()));
 
     try {
         std::tr1::shared_ptr<KuduTable> oTable;

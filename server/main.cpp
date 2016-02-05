@@ -56,7 +56,7 @@ int main(int argc, const char** argv) {
     std::string logLevel("DEBUG");
     std::string commitManager;
     std::string storageNodes;
-    tell::store::ClientConfig config;
+    size_t numThreads = 4;
     bool useKudu = false;
     auto opts = create_options("tpch_server",
             value<'h'>("help", &help, tag::description{"print help"}),
@@ -66,7 +66,7 @@ int main(int argc, const char** argv) {
             value<'c'>("commit-manager", &commitManager, tag::description{"Address to the commit manager"}),
             value<'s'>("storage-nodes", &storageNodes, tag::description{"Semicolon-separated list of storage node addresses"}),
             value<'k'>("kudu", &useKudu, tag::description{"use kudu instead of TellStore"}),
-            value<-1>("network-threads", &config.numNetworkThreads, tag::ignore_short<true>{})
+            value<'n'>("network-threads", &numThreads, tag::ignore_short<true>{})
             );
     try {
         parse(opts, argc, argv);
@@ -119,8 +119,17 @@ int main(int argc, const char** argv) {
         // we do not need to delete this object, it will delete itself
         if (useKudu) {
 #ifdef USE_KUDU
-                tpch::KuduClient client = tpch::getClient<tpch::KuduClient>(storageNodes, commitManager);
-                accept(service, a, client);
+            tpch::KuduClient client = tpch::getClient<tpch::KuduClient>(storageNodes, commitManager);
+            accept(service, a, client);
+            std::vector<std::thread> threads;
+            for (unsigned i = 0; i < numThreads; ++i) {
+                threads.emplace_back([&service](){
+                        service.run();
+                });
+            }
+            for (auto& t : threads) {
+                t.join();
+            }
 #else
                 std::cerr << "Code was not compiled for Kudu\n";
                 return 1;
@@ -128,8 +137,8 @@ int main(int argc, const char** argv) {
         } else {
             tpch::TellClient client = tpch::getClient<tpch::TellClient>(storageNodes, commitManager);
             accept(service, a, client);
+            service.run();
         }
-        service.run();
     } catch (std::exception& e) {
         std::cerr << e.what() << std::endl;
     }

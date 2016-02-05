@@ -79,10 +79,6 @@ int main(int argc, const char** argv) {
         print_help(std::cout, opts);
         return 0;
     }
-    if (host.empty()) {
-        std::cerr << "No host\n";
-        return 1;
-    }
 
     if (populate) {
         if (use_kudu) {
@@ -96,6 +92,10 @@ int main(int argc, const char** argv) {
             tpch::createSchemaAndPopulate<tpch::TellConnection, tell::db::TransactionFiber<void>>(storage, commitManager, baseDir);
     } else {
 
+        if (host.empty()) {
+            std::cerr << "No host\n";
+            return 1;
+        }
         auto startTime = tpch::Clock::now();
         auto endTime = startTime + std::chrono::seconds(time);
         crossbow::logger::logger->config.level = crossbow::logger::logLevelFromString(logLevel);
@@ -104,6 +104,7 @@ int main(int argc, const char** argv) {
             io_service service;
 
             // do client creation multi-threaded as it may take a while
+            LOG_DEBUG("Start client creation.");
             auto sumClients = hosts.size() * numClients;
             std::vector<tpch::Client> clients;
             clients.reserve(sumClients);
@@ -115,6 +116,7 @@ int main(int argc, const char** argv) {
             }
             for (auto &thread: threads)
                 thread.join();
+            LOG_DEBUG("Client creation finished.");
 
             for (size_t i = 0; i < hosts.size(); ++i) {
                 auto h = hosts[i];

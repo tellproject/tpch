@@ -79,12 +79,14 @@ public:
     template<Command C, class Callback>
     typename std::enable_if<C == Command::RF1, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
+        LOG_DEBUG("Received RF1 event at Kudu Connection.");
         callback(mTransactions.rf1(*mSession, args));
     }
 
     template<Command C, class Callback>
     typename std::enable_if<C == Command::RF2, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
+       LOG_DEBUG("Received RF2 event at Kudu Connection.");
        callback(mTransactions.rf2(*mSession, args));
     }
 };

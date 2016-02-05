@@ -41,6 +41,7 @@ Client::Client(boost::asio::io_service& service, decltype(Clock::now()) endTime,
     : mSocket(service)
     , mCmds(mSocket)
     , mCurrentIdx(0)
+    , mDoInsert(true)
     , mEndTime(endTime)
 {
     // open order file
@@ -56,7 +57,7 @@ Client::Client(boost::asio::io_service& service, decltype(Clock::now()) endTime,
 
     // create order tuples
     using order_t = std::tuple<int32_t, int32_t, crossbow::string, double, date, crossbow::string, crossbow::string, int32_t, crossbow::string>;
-    boost::unordered_map<int32_t, Order*> orderIdToOrder;
+    boost::unordered_map<int32_t, size_t> orderIdToIdx;
     getFields<order_t>(orderIn, [&] (const order_t& fields) {
         mOrders.emplace_back();
         Order &order = mOrders.back();
@@ -70,17 +71,17 @@ Client::Client(boost::asio::io_service& service, decltype(Clock::now()) endTime,
         order.shippriority = std::get<7>(fields);
         order.comment = std::get<8>(fields);
         order.lineitems.reserve(7);
-        orderIdToOrder.emplace(std::make_pair(order.orderkey, &order));
+        orderIdToIdx.emplace(std::make_pair(order.orderkey, mOrders.size()-1));
     });
 
     // create lineitem tuples within orders
     using lineitem_t = std::tuple<int32_t, int32_t, int32_t, int32_t, double, double, double, double, crossbow::string, crossbow::string, date, date, date, crossbow::string, crossbow::string, crossbow::string>;
     getFields<lineitem_t>(lineItemIn, [&] (const lineitem_t& fields) {
-        int32_t orderKey = std::get<3>(fields);
-        auto it = orderIdToOrder.find(orderKey);
-        if (it == orderIdToOrder.end())
+        int32_t orderKey = std::get<0>(fields);
+        auto it = orderIdToIdx.find(orderKey);
+        if (it == orderIdToIdx.end())
             LOG_ERROR("Error: no order found with orderkey " + std::to_string(orderKey));
-        Order &order = *(it->second);
+        Order &order = mOrders[it->second];
         order.lineitems.emplace_back();
         Lineitem &item = order.lineitems.back();
         item.orderkey =      std::get<0>(fields);
@@ -135,13 +136,18 @@ void Client::execute(const typename Signature<C>::arguments &arg) {
 
 void Client::run() {
     size_t endIdx = std::min(size_t(mCurrentIdx + orderBatchSize), mOrders.size());
-    LOG_DEBUG("Start RF1 Transaction");
-    RF1In rf1args ({std::vector<Order>(&mOrders[mCurrentIdx], &mOrders[endIdx])});
-    execute<Command::RF1>(rf1args);
-    LOG_DEBUG("Start RF2 Transaction");
-    RF2In rf2args ({std::vector<int32_t>(&mDeletes[mCurrentIdx], &mDeletes[endIdx])});;
-    execute<Command::RF2>(rf2args);
-    mCurrentIdx = (mCurrentIdx + orderBatchSize) % mOrders.size();
+    if (mDoInsert) {
+        LOG_DEBUG("Start RF1 Transaction");
+        RF1In rf1args ({std::vector<Order>(&mOrders[mCurrentIdx], &mOrders[endIdx])});
+        LOG_DEBUG("Input has " + std::to_string(rf1args.orders.size()) + " orders.");
+        execute<Command::RF1>(rf1args);
+    } else {
+        LOG_DEBUG("Start RF2 Transaction");
+        RF2In rf2args ({std::vector<int32_t>(&mDeletes[mCurrentIdx], &mDeletes[endIdx])});;
+        LOG_DEBUG("Input has " + std::to_string(rf2args.orderIds.size()) + " orders.");
+        execute<Command::RF2>(rf2args);
+        mCurrentIdx = (mCurrentIdx + orderBatchSize) % mOrders.size();
+    }
 }
 
 
