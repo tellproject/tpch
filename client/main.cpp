@@ -65,6 +65,7 @@ int main(int argc, const char** argv) {
             , value<'s'>("storage", &storage, tag::description{"address(es) of the storage nodes, separated by semicolon (only necessary for population)"})
             , value<'x'>("commit-manager", &commitManager, tag::description{"address of the commit manager (only necessary for population)"})
             , value<'d'>("base-dir", &baseDir, tag::description{"Base directory to the generated tbl/upd/del files"})
+            , value<'k'>("kudu", &use_kudu, tag::description{"use kudu instead of TellStore"})
             , value<-1>("exit", &exit, tag::description{"Quit server"})
             );
     try {
@@ -147,8 +148,7 @@ int main(int argc, const char** argv) {
                 std::cerr << "Code was not compiled for Kudu\n";
                 return 1;
 #endif
-            }
-            else
+            } else
                 tpch::createSchemaAndPopulate<tpch::TellConnection, tell::db::TransactionFiber<void>>(storage, commitManager, baseDir);
         } else {
             for (auto& client : clients) {

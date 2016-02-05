@@ -65,6 +65,7 @@ int main(int argc, const char** argv) {
             value<'l'>("log-level", &logLevel, tag::description{"The log level"}),
             value<'c'>("commit-manager", &commitManager, tag::description{"Address to the commit manager"}),
             value<'s'>("storage-nodes", &storageNodes, tag::description{"Semicolon-separated list of storage node addresses"}),
+            value<'k'>("kudu", &useKudu, tag::description{"use kudu instead of TellStore"}),
             value<-1>("network-threads", &config.numNetworkThreads, tag::ignore_short<true>{})
             );
     try {
@@ -117,7 +118,13 @@ int main(int argc, const char** argv) {
 
         // we do not need to delete this object, it will delete itself
         if (useKudu) {
-
+#ifdef USE_KUDU
+                tpch::KuduClient client = tpch::getClient<tpch::KuduClient>(storageNodes, commitManager);
+                accept(service, a, client);
+#else
+                std::cerr << "Code was not compiled for Kudu\n";
+                return 1;
+#endif
         } else {
             tpch::TellClient client = tpch::getClient<tpch::TellClient>(storageNodes, commitManager);
             accept(service, a, client);
