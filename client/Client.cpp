@@ -140,13 +140,15 @@ void Client::run() {
         LOG_DEBUG("Start RF1 Transaction");
         RF1In rf1args ({std::vector<Order>(&mOrders[mCurrentIdx], &mOrders[endIdx])});
         LOG_DEBUG("Input has " + std::to_string(rf1args.orders.size()) + " orders.");
+        mDoInsert = false;
         execute<Command::RF1>(rf1args);
     } else {
         LOG_DEBUG("Start RF2 Transaction");
         RF2In rf2args ({std::vector<int32_t>(&mDeletes[mCurrentIdx], &mDeletes[endIdx])});;
         LOG_DEBUG("Input has " + std::to_string(rf2args.orderIds.size()) + " orders.");
-        execute<Command::RF2>(rf2args);
+        mDoInsert = true;
         mCurrentIdx = (mCurrentIdx + orderBatchSize) % mOrders.size();
+        execute<Command::RF2>(rf2args);
     }
 }
 

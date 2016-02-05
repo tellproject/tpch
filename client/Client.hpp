@@ -43,7 +43,7 @@ struct LogEntry {
 
 static const std::string orderFilePrefix = "orders.tbl.u";
 static const std::string lineitemFilePrefix = "lineitem.tbl.u";
-static const uint orderBatchSize = 1500;
+static const uint orderBatchSize = 1;
 
 class Client {
     using Socket = boost::asio::ip::tcp::socket;

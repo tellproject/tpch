@@ -133,7 +133,7 @@ struct Order {
         ar & orderstatus;
         ar & totalprice;
         ar & orderdate;
-        ar &orderpriority;
+        ar & orderpriority;
         ar & clerk;
         ar & shippriority;
         ar & comment;
