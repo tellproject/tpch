@@ -138,9 +138,9 @@ template<class T>
 void createLineitem(T& tx) {
     TableCreator<T> tc(tx);
     tc("l_orderkey", type::INT);
+    tc("l_linenumber", type::INT);  // linenumber must be listed first because it is part of the primary key
     tc("l_partkey", type::INT);
     tc("l_suppkey", type::INT);
-    tc("l_linenumber", type::INT);
     tc("l_quantity", type::DOUBLE);
     tc("l_extendedprice", type::DOUBLE);
     tc("l_discount", type::DOUBLE);
