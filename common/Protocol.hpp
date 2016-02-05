@@ -94,11 +94,9 @@ struct Lineitem {
     template<class Archiver>
     void operator&(Archiver& ar) {
         ar & orderkey;
-        ar & linenumber;
-        ar & orderkey;
-        ar & linenumber;
         ar & partkey;
         ar & suppkey;
+        ar & linenumber;
         ar & quantity;
         ar & extendedprice;
         ar & discount;
