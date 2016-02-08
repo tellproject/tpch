@@ -174,7 +174,7 @@ void DBGenBase<TellClient, TellFiber>::threaded_populate(TellClient &client,
         fibers.front().wait();
         fibers.pop();
     }
-    fibers.emplace(client->clientManager.startTransaction([&tableName, &data, startKey] (tell::db::Transaction& tx) {
+    fibers.emplace(client->clientManager.startTransaction([&tableName, data, startKey] (tell::db::Transaction& tx) {
         Populate<tell::db::Transaction> populate(tx);
         populateTable(tableName, startKey, data, populate);
         tx.commit();
