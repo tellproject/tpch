@@ -83,7 +83,7 @@ int main(int argc, const char** argv) {
     if (populate) {
         if (use_kudu) {
 #ifdef USE_KUDU
-            tpch::DBGenerator<tpch::KuduClient, std::thread> generator;
+            tpch::DBGenerator<tpch::KuduClient, tpch::KuduFiber> generator;
             generator.createSchemaAndPopulate(storage, commitManager, baseDir);
             return 0;
 #else
@@ -91,7 +91,7 @@ int main(int argc, const char** argv) {
             return 1;
 #endif
         } else {
-            tpch::DBGenerator<tpch::TellClient, tell::db::TransactionFiber<void>> generator;
+            tpch::DBGenerator<tpch::TellClient, tpch::TellFiber> generator;
             generator.createSchemaAndPopulate(storage, commitManager, baseDir);
             return 0;
         }

@@ -50,7 +50,16 @@ namespace tpch {
 
 
 // public stuff
-using TellClient = std::shared_ptr<tell::db::ClientManager<void>>;
+struct TellClientImpl {
+    tell::store::ClientConfig clientConfig;
+    tell::db::ClientManager<void> clientManager;
+
+    TellClientImpl(tell::store::ClientConfig&& config)
+        : clientConfig(std::move(config))
+        , clientManager(clientConfig)
+    {}
+};
+using TellClient = std::shared_ptr<TellClientImpl>;
 using TellFiber = tell::db::TransactionFiber<void>;
 
 #ifdef USE_KUDU

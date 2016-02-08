@@ -152,7 +152,7 @@ struct string_type<Transaction> {
 };
 
 void DBGenBase<TellClient, TellFiber>::createSchema(TellClient& client) {
-    auto schemaFiber = client->startTransaction([] (tell::db::Transaction& tx) {
+    auto schemaFiber = client->clientManager.startTransaction([] (tell::db::Transaction& tx) {
         createTables(tx);
         tx.commit();
     });
@@ -160,11 +160,11 @@ void DBGenBase<TellClient, TellFiber>::createSchema(TellClient& client) {
 }
 
 TellClient DBGenBase<TellClient, TellFiber>::getClient(std::string &storage, std::string &commitManager) {
-    auto clientConfig = std::make_shared<tell::store::ClientConfig>();
-    clientConfig->tellStore = clientConfig->parseTellStore(storage);
-    clientConfig->commitManager = crossbow::infinio::Endpoint(crossbow::infinio::Endpoint::ipv4(), commitManager.c_str());
-    clientConfig->numNetworkThreads = 7;
-    return std::make_shared<tell::db::ClientManager<void>>(*clientConfig);
+    tell::store::ClientConfig clientConfig;
+    clientConfig.tellStore = tell::store::ClientConfig::parseTellStore(storage);
+    clientConfig.commitManager = crossbow::infinio::Endpoint(crossbow::infinio::Endpoint::ipv4(), commitManager.c_str());
+    clientConfig.numNetworkThreads = 7;
+    return std::make_shared<TellClientImpl>(std::move(clientConfig));
 }
 
 void DBGenBase<TellClient, TellFiber>::threaded_populate(TellClient &client,
@@ -174,7 +174,7 @@ void DBGenBase<TellClient, TellFiber>::threaded_populate(TellClient &client,
         fibers.front().wait();
         fibers.pop();
     }
-    fibers.emplace(client->startTransaction([&tableName, &data, startKey] (tell::db::Transaction& tx) {
+    fibers.emplace(client->clientManager.startTransaction([&tableName, &data, startKey] (tell::db::Transaction& tx) {
         Populate<tell::db::Transaction> populate(tx);
         populateTable(tableName, startKey, data, populate);
         tx.commit();
