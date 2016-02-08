@@ -50,7 +50,7 @@ namespace tpch {
 
 
 // public stuff
-using TellClient = std::unique_ptr<tell::db::ClientManager<void>>;
+using TellClient = std::shared_ptr<tell::db::ClientManager<void>>;
 using TellFiber = tell::db::TransactionFiber<void>;
 
 #ifdef USE_KUDU
@@ -493,7 +493,7 @@ template<class ClientType, class FiberType>
 struct DBGenBase {
     void createSchema(ClientType& connection);
     ClientType getClient(std::string &storage, std::string &commitMananger);
-    void threaded_populate(ClientType &connection, std::queue<FiberType> &fibers,
+    void threaded_populate(ClientType &client, std::queue<FiberType> &fibers,
             std::string &tableName, const uint64_t &startKey, const std::shared_ptr<std::stringstream> &data);
     void join(FiberType &fiber);
 };
@@ -526,11 +526,11 @@ template<class ClientType, class FiberType>
 struct DBGenerator : public DBGenBase<ClientType, FiberType> {
 
     void createSchemaAndPopulate(std::string &storage, std::string &commitManager, std::string &baseDir) {
-        ClientType connection = this->getClient(storage, commitManager);
-        this->createSchema(connection);
+        ClientType client = this->getClient(storage, commitManager);
+        this->createSchema(client);
 
         for (std::string tableName : {"part", "partsupp", "supplier", "customer", "orders", "lineitem", "nation", "region"}) {
-            getFiles(baseDir, tableName, [this, &connection, &tableName] (const std::string& fileName) {
+            getFiles(baseDir, tableName, [this, &client, &tableName] (const std::string& fileName) {
             std::cout << "Reading " << fileName << std::endl;
             std::fstream in(fileName.c_str(), std::ios_base::in);
             std::string line;
@@ -548,7 +548,7 @@ struct DBGenerator : public DBGenBase<ClientType, FiberType> {
                 if (count == 0) {
                     break;
                 }
-                this->threaded_populate(connection, fibers, tableName, startKey, data);
+                this->threaded_populate(client, fibers, tableName, startKey, data);
                 startKey += count;
             }
             while (!fibers.empty()) {

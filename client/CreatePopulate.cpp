@@ -151,8 +151,8 @@ struct string_type<Transaction> {
     using type = crossbow::string;
 };
 
-void DBGenBase<TellClient, TellFiber>::createSchema(TellClient& clientManager) {
-    auto schemaFiber = clientManager->startTransaction([] (tell::db::Transaction& tx) {
+void DBGenBase<TellClient, TellFiber>::createSchema(TellClient& client) {
+    auto schemaFiber = client->startTransaction([] (tell::db::Transaction& tx) {
         createTables(tx);
         tx.commit();
     });
@@ -160,12 +160,11 @@ void DBGenBase<TellClient, TellFiber>::createSchema(TellClient& clientManager) {
 }
 
 TellClient DBGenBase<TellClient, TellFiber>::getClient(std::string &storage, std::string &commitManager) {
-    tell::store::ClientConfig clientConfig;
-    clientConfig.tellStore = clientConfig.parseTellStore(storage);
-    clientConfig.commitManager = crossbow::infinio::Endpoint(crossbow::infinio::Endpoint::ipv4(), commitManager.c_str());
-    clientConfig.numNetworkThreads = 7;
-    TellClient clientManager(new tell::db::ClientManager<void>(clientConfig));
-    return clientManager;
+    auto clientConfig = std::make_shared<tell::store::ClientConfig>();
+    clientConfig->tellStore = clientConfig->parseTellStore(storage);
+    clientConfig->commitManager = crossbow::infinio::Endpoint(crossbow::infinio::Endpoint::ipv4(), commitManager.c_str());
+    clientConfig->numNetworkThreads = 7;
+    return std::make_shared<tell::db::ClientManager<void>>(*clientConfig);
 }
 
 void DBGenBase<TellClient, TellFiber>::threaded_populate(TellClient &client,
@@ -175,7 +174,7 @@ void DBGenBase<TellClient, TellFiber>::threaded_populate(TellClient &client,
         fibers.front().wait();
         fibers.pop();
     }
-    fibers.emplace(client->startTransaction([&tableName, data, startKey] (tell::db::Transaction& tx) {
+    fibers.emplace(client->startTransaction([&tableName, &data, startKey] (tell::db::Transaction& tx) {
         Populate<tell::db::Transaction> populate(tx);
         populateTable(tableName, startKey, data, populate);
         tx.commit();
