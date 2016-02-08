@@ -455,7 +455,7 @@ struct Populate {
 };
 
 template <class T>
-void populateTable(std::string &tableName, const uint64_t &startKey, const std::shared_ptr<std::stringstream> &data, T &populate) {
+void populateTable(std::string &tableName, const uint64_t &startKey, const std::shared_ptr<std::stringstream> data, T &populate) {
     if (tableName == "part") {
         populate.populatePart(*data, startKey);
     } else if (tableName == "partsupp") {
@@ -553,6 +553,7 @@ struct DBGenerator : public DBGenBase<ClientType, FiberType> {
                 while (std::getline(in, line) && count < 10000) {
                     *data << line << '\n';
                     ++count;
+                    assert(!(line.empty()));
                 }
                 if (count == 0) {
                     break;

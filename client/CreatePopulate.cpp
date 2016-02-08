@@ -188,7 +188,6 @@ void DBGenBase<TellClient, TellFiber>::join(TellFiber &fiber) {
 }
 
 template struct DBGenBase<TellClient, TellFiber>;
-
 template struct DBGenerator<TellClient, TellFiber>;
 
 } // namespace tpch
