@@ -43,14 +43,14 @@ namespace tpch {
 // public stuff
 
 template<class ConnectionType, class FiberType>
-void createSchemaAndPopulate(std::string &storage, std::string &commitManager, std::string baseDir);
+void createSchemaAndPopulate(std::string &storage, std::string &commitManager, std::string &baseDir);
 
 using TellConnection = std::unique_ptr<tell::db::ClientManager<void>>;
-extern template void createSchemaAndPopulate<TellConnection, tell::db::TransactionFiber<void>>(std::string &storage, std::string &commitManager, std::string baseDir);
+extern template void createSchemaAndPopulate<TellConnection, tell::db::TransactionFiber<void>>(std::string &storage, std::string &commitManager, std::string &baseDir);
 
 #ifdef USE_KUDU
 using KuduConnection = std::tr1::shared_ptr<kudu::client::KuduClient>;
-extern template void createSchemaAndPopulate<KuduConnection, std::thread>(std::string &storage, std::string &commitManager, std::string baseDir);
+extern template void createSchemaAndPopulate<KuduConnection, std::thread>(std::string &storage, std::string &commitManager, std::string &baseDir);
 #endif
 
 // private stuff

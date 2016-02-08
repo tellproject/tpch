@@ -214,6 +214,6 @@ void join(std::thread &thread) {
     thread.join();
 }
 
-template void createSchemaAndPopulate<KuduConnection, std::thread>(std::string &storage, std::string &commitManager, std::string baseDir);
+template void createSchemaAndPopulate<KuduConnection, std::thread>(std::string &storage, std::string &commitManager, std::string &baseDir);
 
 } // namespace tpch

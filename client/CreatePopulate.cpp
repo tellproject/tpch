@@ -195,6 +195,6 @@ void join(tell::db::TransactionFiber<void> &fiber) {
     fiber.wait();
 }
 
-template void createSchemaAndPopulate<TellConnection, tell::db::TransactionFiber<void>>(std::string &storage, std::string &commitManager, std::string baseDir);
+template void createSchemaAndPopulate<TellConnection, tell::db::TransactionFiber<void>>(std::string &storage, std::string &commitManager, std::string &baseDir);
 
 } // namespace tpch
