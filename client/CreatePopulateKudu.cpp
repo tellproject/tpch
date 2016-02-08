@@ -90,24 +90,6 @@ struct TableCreator<kudu::client::KuduSession> {
 };
 
 template<>
-void createSchema(KuduConnection& client) {
-    auto session = client->NewSession();
-    assertOk(session->SetFlushMode(kudu::client::KuduSession::MANUAL_FLUSH));
-    session->SetTimeoutMillis(60000);
-    createTables(*session);
-    assertOk(session->Close());
-}
-
-template<>
-KuduConnection getConnection(std::string &storage, std::string &commitMananger) {
-    kudu::client::KuduClientBuilder clientBuilder;
-    clientBuilder.add_master_server_addr(storage);
-    std::tr1::shared_ptr<kudu::client::KuduClient> client;
-    clientBuilder.Build(&client);
-    return client;
-}
-
-template<>
 struct Populator<KuduSession> {
     KuduSession& session;
     std::tr1::shared_ptr<KuduTable> table;
@@ -182,17 +164,28 @@ struct Populator<KuduSession> {
     }
 };
 
-template struct Populator<KuduSession>;
-
 template<>
 struct string_type<KuduSession> {
     using type = std::string;
 };
 
-template struct Populate<KuduSession>;
+void DBGenBase<KuduClient, KuduFiber>::createSchema(KuduClient& client) {
+    auto session = client->NewSession();
+    assertOk(session->SetFlushMode(kudu::client::KuduSession::MANUAL_FLUSH));
+    session->SetTimeoutMillis(60000);
+    createTables(*session);
+    assertOk(session->Close());
+}
 
-template<>
-void threaded_populate(KuduConnection &client, std::queue<std::thread> &threads,
+KuduClient DBGenBase<KuduClient, KuduFiber>::getClient(std::string &storage, std::string&) {
+    kudu::client::KuduClientBuilder clientBuilder;
+    clientBuilder.add_master_server_addr(storage);
+    std::tr1::shared_ptr<kudu::client::KuduClient> client;
+    clientBuilder.Build(&client);
+    return client;
+}
+
+void DBGenBase<KuduClient, KuduFiber>::threaded_populate(KuduClient &client, std::queue<KuduFiber> &threads,
         std::string &tableName, const uint64_t &startKey, const std::shared_ptr<std::stringstream> &data) {
     if (threads.size() >= 8) {
         threads.front().join();
@@ -209,11 +202,11 @@ void threaded_populate(KuduConnection &client, std::queue<std::thread> &threads,
     });
 }
 
-template<>
-void join(std::thread &thread) {
+void DBGenBase<KuduClient, KuduFiber>::join(KuduFiber &thread) {
     thread.join();
 }
 
-template void createSchemaAndPopulate<KuduConnection, std::thread>(std::string &storage, std::string &commitManager, std::string &baseDir);
+template struct DBGenBase<KuduClient, KuduFiber>;
+template struct DBGenerator<KuduClient, KuduFiber>;
 
 } // namespace tpch

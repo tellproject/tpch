@@ -38,19 +38,24 @@
 #include <kudu/client/client.h>
 #endif
 
+/**
+ * In order to use this class, first create one of the two available generators (Tell or Kudu):
+ * tpch::DBGenerator<tpch::TellClient, tell::db::TransactionFiber<void>> generator;
+ * tpch::DBGenerator<tpch::KuduClient, std::thread> generator;
+ *
+ * After that, you can generate and populte the database with:
+ * generator.createSchemaAndPopulate(storage, commitManager, baseDir);
+ */
 namespace tpch {
 
+
 // public stuff
-
-template<class ConnectionType, class FiberType>
-void createSchemaAndPopulate(std::string &storage, std::string &commitManager, std::string &baseDir);
-
-using TellConnection = std::unique_ptr<tell::db::ClientManager<void>>;
-extern template void createSchemaAndPopulate<TellConnection, tell::db::TransactionFiber<void>>(std::string &storage, std::string &commitManager, std::string &baseDir);
+using TellClient = std::unique_ptr<tell::db::ClientManager<void>>;
+using TellFiber = tell::db::TransactionFiber<void>;
 
 #ifdef USE_KUDU
-using KuduConnection = std::tr1::shared_ptr<kudu::client::KuduClient>;
-extern template void createSchemaAndPopulate<KuduConnection, std::thread>(std::string &storage, std::string &commitManager, std::string &baseDir);
+using KuduClient = std::tr1::shared_ptr<kudu::client::KuduClient>;
+using KuduFiber = std::thread;
 #endif
 
 // private stuff
@@ -189,12 +194,6 @@ void createTables(T& tx) {
     createNation(tx);
     createRegion(tx);
 }
-
-template<class T>
-void createSchema(T& connection);
-
-template<class T>
-T getConnection(std::string &storage, std::string &commitMananger);
 
 struct date {
     int64_t value;
@@ -470,17 +469,10 @@ void populateTable(std::string &tableName, const uint64_t &startKey, const std::
     }
 }
 
-template<class ConnectionType, class FiberType>
-void threaded_populate(ConnectionType &connection, std::queue<FiberType> &fibers,
-        std::string &tableName, const uint64_t &startKey, const std::shared_ptr<std::stringstream> &data);
-
 inline bool file_readable(const std::string& fileName) {
     std::ifstream in(fileName.c_str());
     return in.good();
 }
-
-template<class FiberType>
-void join(FiberType &fiber);
 
 template<class Fun>
 void getFiles(const std::string& baseDir, const std::string& tableName, Fun fun) {
@@ -497,43 +489,85 @@ void getFiles(const std::string& baseDir, const std::string& tableName, Fun fun)
     }
 }
 
-template<class ConnectionType, class FiberType>
-void createSchemaAndPopulate(std::string &storage, std::string &commitManager, std::string &baseDir) {
-    ConnectionType connection = getConnection<ConnectionType>(storage, commitManager);
-    createSchema(connection);
+template<class ClientType, class FiberType>
+struct DBGenBase {
+    void createSchema(ClientType& connection);
+    ClientType getClient(std::string &storage, std::string &commitMananger);
+    void threaded_populate(ClientType &connection, std::queue<FiberType> &fibers,
+            std::string &tableName, const uint64_t &startKey, const std::shared_ptr<std::stringstream> &data);
+    void join(FiberType &fiber);
+};
 
-    for (std::string tableName : {"part", "partsupp", "supplier", "customer", "orders", "lineitem", "nation", "region"}) {
-        getFiles(baseDir, tableName, [&connection, &tableName] (const std::string& fileName) {
-        std::cout << "Reading " << fileName << std::endl;
-        std::fstream in(fileName.c_str(), std::ios_base::in);
-        std::string line;
+template<>
+struct DBGenBase<TellClient, TellFiber> {
+    void createSchema(TellClient& connection);
+    TellClient getClient(std::string &storage, std::string &commitMananger);
+    void threaded_populate(TellClient &client, std::queue<TellFiber> &fibers,
+            std::string &tableName, const uint64_t &startKey, const std::shared_ptr<std::stringstream> &data);
+    void join(TellFiber &fiber);
+};
 
-        std::queue<FiberType> fibers;
+extern template struct DBGenBase<TellClient, TellFiber>;
 
-        uint64_t startKey = 0;
-        while (true) {
-            auto data = std::make_shared<std::stringstream>();
-            uint64_t count = 0;
-            while (std::getline(in, line) && count < 10000) {
-                *data << line << '\n';
-                ++count;
+#ifdef USE_KUDU
+template<>
+struct DBGenBase<KuduClient, KuduFiber> {
+    void createSchema(KuduClient& connection);
+    KuduClient getClient(std::string &storage, std::string &commitMananger);
+    void threaded_populate(KuduClient &client, std::queue<KuduFiber> &fibers,
+            std::string &tableName, const uint64_t &startKey, const std::shared_ptr<std::stringstream> &data);
+    void join(KuduFiber &fiber);
+};
+
+extern template struct DBGenBase<KuduClient, KuduFiber>;
+#endif
+
+template<class ClientType, class FiberType>
+struct DBGenerator : public DBGenBase<ClientType, FiberType> {
+
+    void createSchemaAndPopulate(std::string &storage, std::string &commitManager, std::string &baseDir) {
+        ClientType connection = this->getClient(storage, commitManager);
+        this->createSchema(connection);
+
+        for (std::string tableName : {"part", "partsupp", "supplier", "customer", "orders", "lineitem", "nation", "region"}) {
+            getFiles(baseDir, tableName, [this, &connection, &tableName] (const std::string& fileName) {
+            std::cout << "Reading " << fileName << std::endl;
+            std::fstream in(fileName.c_str(), std::ios_base::in);
+            std::string line;
+
+            std::queue<FiberType> fibers;
+
+            uint64_t startKey = 0;
+            while (true) {
+                auto data = std::make_shared<std::stringstream>();
+                uint64_t count = 0;
+                while (std::getline(in, line) && count < 10000) {
+                    *data << line << '\n';
+                    ++count;
+                }
+                if (count == 0) {
+                    break;
+                }
+                this->threaded_populate(connection, fibers, tableName, startKey, data);
+                startKey += count;
             }
-            if (count == 0) {
-                break;
+            while (!fibers.empty()) {
+                this->join(fibers.front());
+                fibers.pop();
             }
-            threaded_populate(connection, fibers, tableName, startKey, data);
-            startKey += count;
-        }
-        while (!fibers.empty()) {
-            join(fibers.front());
-            fibers.pop();
-        }
 
-        std::cout << std::endl << std::endl;
-        });
+            std::cout << std::endl << std::endl;
+            });
+        }
+        std::cout << "Done" << std::endl;
+        std::cout << '\a';
     }
-    std::cout << "Done" << std::endl;
-    std::cout << '\a';
-}
+};
+
+extern template struct DBGenerator<TellClient, TellFiber>;
+
+#ifdef USE_KUDU
+extern template struct DBGenerator<KuduClient, KuduFiber>;
+#endif
 
 } // namespace tpch

@@ -83,15 +83,18 @@ int main(int argc, const char** argv) {
     if (populate) {
         if (use_kudu) {
 #ifdef USE_KUDU
-            tpch::createSchemaAndPopulate<tpch::KuduConnection, std::thread>(storage, commitManager, baseDir);
+            tpch::DBGenerator<tpch::KuduClient, std::thread> generator;
+            generator.createSchemaAndPopulate(storage, commitManager, baseDir);
             return 0;
 #else
             std::cerr << "Code was not compiled for Kudu\n";
             return 1;
 #endif
-        } else
-            tpch::createSchemaAndPopulate<tpch::TellConnection, tell::db::TransactionFiber<void>>(storage, commitManager, baseDir);
+        } else {
+            tpch::DBGenerator<tpch::TellClient, tell::db::TransactionFiber<void>> generator;
+            generator.createSchemaAndPopulate(storage, commitManager, baseDir);
             return 0;
+        }
     } else {
 
         if (host.empty()) {
