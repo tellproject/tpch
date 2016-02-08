@@ -498,7 +498,7 @@ void getFiles(const std::string& baseDir, const std::string& tableName, Fun fun)
 }
 
 template<class ConnectionType, class FiberType>
-void createSchemaAndPopulate(std::string &storage, std::string &commitManager, std::string baseDir) {
+void createSchemaAndPopulate(std::string &storage, std::string &commitManager, std::string &baseDir) {
     ConnectionType connection = getConnection<ConnectionType>(storage, commitManager);
     createSchema(connection);
 
