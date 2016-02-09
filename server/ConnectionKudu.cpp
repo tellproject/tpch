@@ -106,7 +106,7 @@ void Connection<KuduClient>::run() {
 }
 
 template<>
-KuduClient getClient(std::string &storage, std::string &commitManager) {
+KuduClient Connection<KuduClient>::getClient(std::string &storage, std::string&) {
     kudu::client::KuduClientBuilder clientBuilder;
     clientBuilder.add_master_server_addr(storage);
     std::tr1::shared_ptr<kudu::client::KuduClient> client;

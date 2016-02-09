@@ -36,7 +36,7 @@ class CommandImpl<TellClient> {
     Connection<TellClient> *mConnection;
     server::Server<CommandImpl<TellClient>> mServer;
     boost::asio::io_service& mService;
-    tell::db::ClientManager<void>& mClientManager;
+    TellClient mClient;
     std::unique_ptr<tell::db::TransactionFiber<void>> mFiber;
     Transactions mTransactions;
 
@@ -45,12 +45,12 @@ public:
             Connection<TellClient> *connection,
             boost::asio::ip::tcp::socket& socket,
             boost::asio::io_service& service,
-            tell::db::ClientManager<void>& clientManager
+            TellClient client
     )
         : mConnection(connection)
         , mServer(*this, socket)
         , mService(service)
-        , mClientManager(clientManager)
+        , mClient(client)
     {}
 
     void run() {
@@ -80,7 +80,7 @@ public:
                 callback(res);
             });
         };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+        mFiber.reset(new tell::db::TransactionFiber<void>(mClient->clientManager.startTransaction(transaction)));
     }
 
     template<Command C, class Callback>
@@ -95,7 +95,7 @@ public:
                 callback(res);
             });
         };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+        mFiber.reset(new tell::db::TransactionFiber<void>(mClient->clientManager.startTransaction(transaction)));
     }
 
 };
@@ -103,7 +103,7 @@ public:
 template<>
 Connection<TellClient>::Connection(boost::asio::io_service& service, TellClient &client)
     : mSocket(service)
-    , mImpl(new CommandImpl<TellClient>(this, mSocket, service, *client))
+    , mImpl(new CommandImpl<TellClient>(this, mSocket, service, client))
 {}
 
 template<>
@@ -115,12 +115,12 @@ void Connection<TellClient>::run() {
 }
 
 template<>
-TellClient getClient(std::string &storage, std::string &commitManager) {
+TellClient Connection<TellClient>::getClient(std::string &storage, std::string &commitManager) {
     tell::store::ClientConfig clientConfig;
-    clientConfig.tellStore = clientConfig.parseTellStore(storage);
+    clientConfig.tellStore = tell::store::ClientConfig::parseTellStore(storage);
     clientConfig.commitManager = crossbow::infinio::Endpoint(crossbow::infinio::Endpoint::ipv4(), commitManager.c_str());
-    TellClient clientManager(new tell::db::ClientManager<void>(clientConfig));
-    return clientManager;
+    clientConfig.numNetworkThreads = 7;
+    return std::make_shared<TellClientImpl>(std::move(clientConfig));
 }
 
 } // namespace tpch

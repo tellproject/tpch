@@ -35,7 +35,17 @@
 
 namespace tpch {
 
-using TellClient = std::unique_ptr<tell::db::ClientManager<void>>;
+// copy-pasted from client/CreatePopulate.hpp
+struct TellClientImpl {
+    tell::store::ClientConfig clientConfig;
+    tell::db::ClientManager<void> clientManager;
+
+    TellClientImpl(tell::store::ClientConfig&& config)
+        : clientConfig(std::move(config))
+        , clientManager(clientConfig)
+    {}
+};
+using TellClient = std::shared_ptr<TellClientImpl>;
 
 #ifdef USE_KUDU
 using KuduClient = std::tr1::shared_ptr<kudu::client::KuduClient>;
@@ -53,10 +63,9 @@ public:
     ~Connection();
     decltype(mSocket)& socket() { return mSocket; }
     void run();
+public:
+    static T getClient(std::string &storage, std::string &commitMananger);
 };
-
-template<class T>
-T getClient(std::string &storage, std::string &commitMananger);
 
 } // namespace tpch
 

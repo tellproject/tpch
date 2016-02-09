@@ -119,7 +119,7 @@ int main(int argc, const char** argv) {
         // we do not need to delete this object, it will delete itself
         if (useKudu) {
 #ifdef USE_KUDU
-            tpch::KuduClient client = tpch::getClient<tpch::KuduClient>(storageNodes, commitManager);
+            auto client = tpch::Connection<tpch::KuduClient>::getClient(storageNodes, commitManager);
             accept(service, a, client);
             std::vector<std::thread> threads;
             for (unsigned i = 0; i < numThreads; ++i) {
@@ -135,7 +135,7 @@ int main(int argc, const char** argv) {
                 return 1;
 #endif
         } else {
-            tpch::TellClient client = tpch::getClient<tpch::TellClient>(storageNodes, commitManager);
+            auto client = tpch::Connection<tpch::TellClient>::getClient(storageNodes, commitManager);
             accept(service, a, client);
             service.run();
         }
