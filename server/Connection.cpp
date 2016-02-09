@@ -86,7 +86,7 @@ public:
     template<Command C, class Callback>
     typename std::enable_if<C == Command::RF2, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        LOG_DEBUG("Received RF2 event at Kudu Connection.");
+        LOG_DEBUG("Received RF2 event at Tell Connection.");
         auto transaction = [this, args, callback](tell::db::Transaction& tx) {
             typename Signature<C>::result res = mTransactions.rf2(tx, args);
             mService.post([this, res, callback]() {

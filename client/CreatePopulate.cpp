@@ -68,6 +68,14 @@ struct TableCreator<Transaction> {
     void setPrimaryKey(const std::vector<std::string>& fieldNames) {
         // we do not explicitely set the primary key on tell, but we misuse the
         // function here to create an additional index and counter for lineitem
+        // and orders
+        if (fieldNames[0][0] == 'o') {
+            schema.addIndex("o_orderkey_idx",
+                    std::make_pair(true, std::vector<tell::store::Schema::id_t>{
+                         schema.idOf("o_orderkey")
+                    }));
+            tx.createCounter("order_idx_counter");
+        }
         if (fieldNames[0][0] == 'l') {
             schema.addIndex("l_orderkey_idx",
                     std::make_pair(false, std::vector<tell::store::Schema::id_t>{
@@ -83,13 +91,16 @@ struct Populator<Transaction> {
     Transaction& tx;
     std::unordered_map<crossbow::string, Field> fields;
     tell::db::table_t tableId;
+    const bool isOrderTable;
     const bool isLineitemTable;
-    std::unique_ptr<Counter> lineitemCounter;
+    std::unique_ptr<Counter> counter;
 
     Populator(Transaction& tx, const crossbow::string& name)
-        : tx(tx),
-          isLineitemTable(name == "lineitem"),
-          lineitemCounter(isLineitemTable ? new Counter (tx.getCounter("l_orderkey")) : nullptr)
+        : tx(tx)
+        , isOrderTable(name == "orders")
+        , isLineitemTable(name == "lineitem")
+        , counter(isOrderTable ? new Counter (tx.getCounter("order_idx_counter")) :
+                (isLineitemTable ? new Counter (tx.getCounter("lineitem_idx_counter")) : nullptr))
     {
         auto f = tx.openTable(name);
         tableId = f.get();
@@ -131,8 +142,8 @@ struct Populator<Transaction> {
     }
 
     void apply(uint64_t key) {
-        if (isLineitemTable)
-            tx.insert(tableId, tell::db::key_t{lineitemCounter->next()}, fields);
+        if (isOrderTable || isLineitemTable)
+            tx.insert(tableId, tell::db::key_t{counter->next()}, fields);
         else
             tx.insert(tableId, tell::db::key_t{key}, fields);
         fields.clear();
