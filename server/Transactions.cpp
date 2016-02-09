@@ -102,36 +102,41 @@ RF2Out Transactions::rf2(tell::db::Transaction &tx, const RF2In &in)
         std::vector<tell::db::key_t> orderKeys;
         orderKeys.reserve(in.orderIds.size());
 
-        // get futures in revers order
+        // get futures in reverse order
         for (auto orderIdIter = in.orderIds.rbegin(); orderIdIter < in.orderIds.rend(); ++orderIdIter) {
-            orderKeys.emplace_back(tell::db::key_t{uint64_t(*orderIdIter)});
             auto lower = tx.lower_bound(oTable, "o_orderkey_idx", {Field(int32_t(*orderIdIter))});
             if (lower.done())
                 LOG_ERROR("order with orderkey " + std::to_string(*orderIdIter) + "could not be deleted because it does not exist!");
-            oTupleFutures.emplace_back(tx.get(oTable, lower.value()));
+            orderKeys.emplace_back(lower.value());
+            oTupleFutures.emplace_back(tx.get(oTable, orderKeys.back()));
         }
 
-        auto orderKeyIter = orderKeys.begin();
+        auto orderKeyIter = orderKeys.rbegin();
+        int orderIdx = 0;
         // get the actual values in reverse reverse = actual order
         for (auto iter = oTupleFutures.rbegin();
-                    iter < oTupleFutures.rend(); ++iter, ++orderKeyIter) {
-            auto &orderKey = *orderKeyIter;
+                    iter < oTupleFutures.rend(); ++iter, ++orderKeyIter, ++orderIdx) {
             // remove order
-            tx.remove(oTable, orderKey, iter->get());
+            tx.remove(oTable, *orderKeyIter, iter->get());
             result.affectedRows++;
             // collect tuple futures for lineitems that might get deleted
+            auto &orderKey = in.orderIds[orderIdx];
             std::vector<Future<Tuple>> lTupleFutures;
-            auto lineIter = tx.lower_bound(lTable, "l_orderkey_idx", {Field(int32_t(orderKey))});
+            auto lineIter = tx.lower_bound(lTable, "l_orderkey_idx", {Field(orderKey)});
             uint counter = 0;
+            std::vector<tell::db::key_t> lineitemKeys;
+            lineitemKeys.reserve(7);
             while (!lineIter.done() && counter++ < 7) {
-                lTupleFutures.emplace_back(tx.get(lTable, lineIter.value()));
+                lineitemKeys.emplace_back(lineIter.value());
+                lTupleFutures.emplace_back(tx.get(lTable, lineitemKeys.back()));
                 lineIter.next();
             }
             // delete lineitems if necessary
-            for (auto lFutureIter = lTupleFutures.rbegin(); lFutureIter < lTupleFutures.rend(); ++lFutureIter) {
+            auto lKeyIter = lineitemKeys.rbegin();
+            for (auto lFutureIter = lTupleFutures.rbegin(); lFutureIter < lTupleFutures.rend(); ++lFutureIter, ++lKeyIter) {
                 auto & lineitem = lFutureIter->get();
-                if (lineitem["l_orderkey"] == int32_t(orderKey)) {
-                    tx.remove(lTable, orderKey, lineitem);
+                if (lineitem["l_orderkey"] == orderKey) {
+                    tx.remove(lTable, *lKeyIter, lineitem);
                     result.affectedRows++;
                 }
             }
