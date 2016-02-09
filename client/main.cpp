@@ -80,6 +80,8 @@ int main(int argc, const char** argv) {
         return 0;
     }
 
+    crossbow::allocator::init();
+
     if (populate) {
         if (use_kudu) {
 #ifdef USE_KUDU
