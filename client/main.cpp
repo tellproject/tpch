@@ -22,6 +22,7 @@
  */
 #include <crossbow/program_options.hpp>
 #include <crossbow/logger.hpp>
+#include <crossbow/allocator.hpp>
 
 #include <boost/asio.hpp>
 #include <boost/system/error_code.hpp>
