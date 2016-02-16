@@ -37,11 +37,15 @@ using err_code = boost::system::error_code;
 
 namespace tpch {
 
-Client::Client(boost::asio::io_service& service, decltype(Clock::now()) endTime, const std::string &baseDir, const uint &updateFileIndex)
+Client::Client(boost::asio::io_service& service, decltype(Clock::now()) endTime, const uint updateBatchSize, const std::string &baseDir, const uint &updateFileIndex)
     : mSocket(service)
     , mCmds(mSocket)
-    , mCurrentIdx(0)
+    , mCurrentStartIdx(0)
     , mDoInsert(true)
+    , mUpdateBatchSize(updateBatchSize)
+    , mBatchCounter(0)
+    , mIsLast(false)
+    , mBatchStartTime(Clock::now())
     , mEndTime(endTime)
 {
     // open order file
@@ -110,8 +114,7 @@ Client::Client(boost::asio::io_service& service, decltype(Clock::now()) endTime,
 
 template <Command C>
 void Client::execute(const typename Signature<C>::arguments &arg) {
-    auto now = Clock::now();
-    if (now > mEndTime) {
+    if (mBatchStartTime > mEndTime) {
         // Time's up
         // benchmarking finished
         mSocket.shutdown(Socket::shutdown_both);
@@ -119,38 +122,59 @@ void Client::execute(const typename Signature<C>::arguments &arg) {
         return;
     }
     mCmds.execute<C>(
-      [this, now](const err_code &ec, typename Signature<C>::result result) {
+      [this](const err_code &ec, typename Signature<C>::result result) {
           if (ec) {
               LOG_ERROR("Error: " + ec.message());
               return;
           }
-          auto end = Clock::now();
           if (!result.success) {
               LOG_ERROR("Transaction unsuccessful [error = %1%]", result.error);
           }
           LOG_DEBUG("Affected rows: %1%", result.affectedRows);
-          mLog.push_back(LogEntry{result.success, result.error, C, now, end});
+          if (mIsLast) {
+              mBatchCounter = 0;
+              mDoInsert = !mDoInsert;
+              auto end = Clock::now();
+              mLog.push_back(LogEntry{result.success, result.error, C, mBatchStartTime, end});
+          }
           run();
       },
       arg);
 }
 
 void Client::run() {
-    size_t endIdx = std::min(size_t(mCurrentIdx + orderBatchSize), mOrders.size());
+    // determine whether we are at that start of a batch and take timestamp if necessary
+    if (mBatchCounter == 0)
+        mBatchStartTime = Clock::now();
+
+    // determine size of current batch to be sent and whether is the last one
+    uint batchSize = mUpdateBatchSize - mBatchCounter;
+    mIsLast = batchSize <= orderBatchSize;
+    if (!mIsLast)
+        batchSize = orderBatchSize;
+
+    // determine batchStartIndex, endIdx and modular endIdx to take data from
+    size_t batchStartIndex = mCurrentStartIdx + mBatchCounter;
+    size_t endIdx = std::min(size_t(batchStartIndex + batchSize), mOrders.size()); // end of batch or end of vector
+    size_t modularEndIdx = (batchStartIndex + batchSize) % mOrders.size();         // eqaul to endIndex if not end of vector
+
+    // do update or insert
+    mBatchCounter += batchSize;
     if (mDoInsert) {
         LOG_DEBUG("Start RF1 Transaction");
-        RF1In rf1args ({std::vector<Order>(&mOrders[mCurrentIdx], &mOrders[endIdx])});
-        LOG_DEBUG("Input has " + std::to_string(rf1args.orders.size()) + " orders. First order in batch has ID "
-                  + std::to_string(rf1args.orders[0].orderkey) + ".");
-        mDoInsert = false;
+        RF1In rf1args ({std::vector<Order>(&mOrders[batchStartIndex], &mOrders[endIdx])});
+        if (modularEndIdx != endIdx)
+            rf1args.orders.insert(rf1args.orders.end(), &mOrders[0], &mOrders[modularEndIdx]);
+        LOG_DEBUG("Input has %1$ orders. First order in batch has ID %2.",
+                  rf1args.orders.size(), rf1args.orders[0].orderkey);
         execute<Command::RF1>(rf1args);
     } else {
         LOG_DEBUG("Start RF2 Transaction");
-        RF2In rf2args ({std::vector<int32_t>(&mDeletes[mCurrentIdx], &mDeletes[endIdx])});;
-        LOG_DEBUG("Input has " + std::to_string(rf2args.orderIds.size()) + " orders. First order in batch has ID "
-                  + std::to_string(rf2args.orderIds[0]));
-        mDoInsert = true;
-        mCurrentIdx = (mCurrentIdx + orderBatchSize) % mOrders.size();
+        RF2In rf2args ({std::vector<int32_t>(&mDeletes[batchStartIndex], &mDeletes[endIdx])});
+        if (modularEndIdx != endIdx)
+            rf2args.orderIds.insert(rf2args.orderIds.end(), &mDeletes[0], &mDeletes[modularEndIdx]);
+        LOG_DEBUG("Input has $1$ orders. First order in batch has ID %2%.",
+                  rf2args.orderIds.size(), rf2args.orderIds[0]);
         execute<Command::RF2>(rf2args);
     }
 }
