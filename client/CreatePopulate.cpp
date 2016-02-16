@@ -70,8 +70,9 @@ struct TableCreator<Transaction> {
         // function here to create an additional index and counter for lineitem
         // and orders
         if (fieldNames[0][0] == 'o') {
+            // TODO: put uniqueness constraint back to true once this is fixed in BD-tree
             schema.addIndex("o_orderkey_idx",
-                    std::make_pair(true, std::vector<tell::store::Schema::id_t>{
+                    std::make_pair(false, std::vector<tell::store::Schema::id_t>{
                          schema.idOf("o_orderkey")
                     }));
             tx.createCounter("order_idx_counter");

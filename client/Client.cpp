@@ -128,6 +128,7 @@ void Client::execute(const typename Signature<C>::arguments &arg) {
           if (!result.success) {
               LOG_ERROR("Transaction unsuccessful [error = %1%]", result.error);
           }
+          LOG_DEBUG("Affected rows: %1%", result.affectedRows);
           mLog.push_back(LogEntry{result.success, result.error, C, now, end});
           run();
       },
@@ -146,7 +147,8 @@ void Client::run() {
     } else {
         LOG_DEBUG("Start RF2 Transaction");
         RF2In rf2args ({std::vector<int32_t>(&mDeletes[mCurrentIdx], &mDeletes[endIdx])});;
-        LOG_DEBUG("Input has " + std::to_string(rf2args.orderIds.size()) + " orders.");
+        LOG_DEBUG("Input has " + std::to_string(rf2args.orderIds.size()) + " orders. First order in batch has ID "
+                  + std::to_string(rf2args.orderIds[0]));
         mDoInsert = true;
         mCurrentIdx = (mCurrentIdx + orderBatchSize) % mOrders.size();
         execute<Command::RF2>(rf2args);
