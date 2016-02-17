@@ -199,6 +199,8 @@ void createTables(T& tx, double scalingFactor, int partitions) {
     createCustomer(tx, scalingFactor, partitions);
     createOrder(tx, scalingFactor, partitions);
     createLineitem(tx, scalingFactor, partitions);
+    createNation(tx);
+    createRegion(tx);
 }
 
 template<class T>
