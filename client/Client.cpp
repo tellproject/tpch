@@ -187,6 +187,7 @@ void Client::populate(const std::string &baseDir, const uint32_t &updateFileInde
 {
     uint32_t partIndex = updateFileIndex+1;
     std::string fName = baseDir + "/orders.tbl." + std::to_string(partIndex);
+    crossbow::string cBaseDir (baseDir.c_str(), baseDir.size());
     if (file_readable(fName)) {
         mCmds.execute<tpch::Command::POPULATE>([&partIndex](const err_code& ec, const std::tuple<bool, crossbow::string>& res){
             if (ec) {
@@ -199,10 +200,23 @@ void Client::populate(const std::string &baseDir, const uint32_t &updateFileInde
             }
             LOG_INFO("Populated part %1% of the database.", partIndex);
             return;
-        }, std::make_pair(partIndex, crossbow::string(fName.c_str(), fName.size())));
+        }, std::make_pair(partIndex, cBaseDir));
+    } else if (updateFileIndex == 0) {  // we might have a single file instead of part files
+        if (file_readable(baseDir + "/orders.tbl")) {
+            mCmds.execute<tpch::Command::POPULATE>([](const err_code& ec, const std::tuple<bool, crossbow::string>& res){
+                if (ec) {
+                    LOG_ERROR(ec.message());
+                    return;
+                }
+                if (!std::get<0>(res)) {
+                    LOG_ERROR(std::get<1>(res));
+                    return;
+                }
+                LOG_INFO("Populated database.");
+                return;
+            }, std::make_pair(uint32_t(0), cBaseDir));
+        }
     }
 }
-
-
 
 } // namespace tpch

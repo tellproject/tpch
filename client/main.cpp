@@ -61,7 +61,7 @@ int main(int argc, const char** argv) {
             , value<'P'>("populate", &populate, tag::description{"Populate the database"})
             , value<'t'>("time", &time, tag::description{"Duration of the benchmark in seconds"})
             , value<'o'>("out", &outFile, tag::description{"Path to the output file"})
-            , value<'d'>("base-dir", &baseDir, tag::description{"Base directory to the generated tbl/upd/del files"})
+            , value<'d'>("base-dir", &baseDir, tag::description{"Base directory to the generated tbl/upd/del files, assumes for population that this base-dir exists on server as well."})
             , value<'b'>("batch-size", &batchSize, tag::description{"Batch Size for RF1/RF2 to be logged."})
             , value<-1>("exit", &exit, tag::description{"Quit server"})
             );

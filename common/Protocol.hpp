@@ -82,7 +82,7 @@ struct Signature<Command::POPULATE_DIM_TABLES> {
 template<>
 struct Signature<Command::POPULATE> {
     using result = std::tuple<bool, crossbow::string>;
-    using arguments = std::pair<uint32_t, crossbow::string>;    // part index, base-dir
+    using arguments = std::pair<uint32_t, crossbow::string>;    // part index (0 means: only one file available), base-dir
 };
 
 
