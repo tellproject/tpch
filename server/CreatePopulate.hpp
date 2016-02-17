@@ -75,7 +75,7 @@ template<class T>
 struct TableCreator;
 
 template<class T>
-void createPart(T& tx) {
+void createPart(T& tx, double scalingFactor, int partitions) {
     TableCreator<T> tc(tx);
     tc("p_partkey", type::INT);
     tc("p_name", type::TEXT);
@@ -87,11 +87,11 @@ void createPart(T& tx) {
     tc("p_retailprice", type::DOUBLE);
     tc("p_comment", type::TEXT);
     tc.setPrimaryKey({"p_partkey"});
-    tc.create("part");
+    tc.create("part", scalingFactor, partitions);
 }
 
 template<class T>
-void createSupplier(T& tx) {
+void createSupplier(T& tx, double scalingFactor, int partitions) {
     TableCreator<T> tc(tx);
     tc("s_suppkey", type::INT);
     tc("s_name", type::TEXT);
@@ -101,11 +101,11 @@ void createSupplier(T& tx) {
     tc("s_acctbal", type::DOUBLE);
     tc("s_comment", type::TEXT);
     tc.setPrimaryKey({"s_suppkey"});
-    tc.create("supplier");
+    tc.create("supplier", scalingFactor, partitions);
 }
 
 template<class T>
-void createPartsupp(T& tx) {
+void createPartsupp(T& tx, double scalingFactor, int partitions) {
     TableCreator<T> tc(tx);
     tc("ps_partkey", type::INT);
     tc("ps_suppkey", type::INT);
@@ -113,11 +113,11 @@ void createPartsupp(T& tx) {
     tc("ps_supplycost", type::DOUBLE);
     tc("ps_comment", type::TEXT);
     tc.setPrimaryKey({"ps_partkey", "ps_suppkey"});
-    tc.create("partsupp");
+    tc.create("partsupp", scalingFactor, partitions);
 }
 
 template<class T>
-void createCustomer(T& tx) {
+void createCustomer(T& tx, double scalingFactor, int partitions) {
     TableCreator<T> tc(tx);
     tc("c_custkey", type::INT);
     tc("c_name", type::TEXT);
@@ -128,11 +128,11 @@ void createCustomer(T& tx) {
     tc("c_mktsegment", type::TEXT);
     tc("c_comment", type::TEXT);
     tc.setPrimaryKey({"c_custkey"});
-    tc.create("customer");
+    tc.create("customer", scalingFactor, partitions);
 }
 
 template<class T>
-void createOrder(T& tx) {
+void createOrder(T& tx, double scalingFactor, int partitions) {
     TableCreator<T> tc(tx);
     tc("o_orderkey", type::INT);
     tc("o_custkey", type::INT);
@@ -144,11 +144,11 @@ void createOrder(T& tx) {
     tc("o_shippriority", type::INT);
     tc("o_comment", type::TEXT);
     tc.setPrimaryKey({"o_orderkey"});
-    tc.create("orders");
+    tc.create("orders", scalingFactor, partitions);
 }
 
 template<class T>
-void createLineitem(T& tx) {
+void createLineitem(T& tx, double scalingFactor, int partitions) {
     TableCreator<T> tc(tx);
     tc("l_orderkey", type::INT);
     tc("l_linenumber", type::INT);  // linenumber must be listed first because it is part of the primary key
@@ -167,7 +167,7 @@ void createLineitem(T& tx) {
     tc("l_shipmode", type::TEXT);
     tc("l_comment", type::TEXT);
     tc.setPrimaryKey({"l_orderkey", "l_linenumber"});
-    tc.create("lineitem");
+    tc.create("lineitem", scalingFactor, partitions);
 }
 
 template<class T>
@@ -192,15 +192,13 @@ void createRegion(T& tx) {
 }
 
 template<class T>
-void createTables(T& tx) {
-    createPart(tx);
-    createSupplier(tx);
-    createPartsupp(tx);
-    createCustomer(tx);
-    createOrder(tx);
-    createLineitem(tx);
-    createNation(tx);
-    createRegion(tx);
+void createTables(T& tx, double scalingFactor, int partitions) {
+    createPart(tx, scalingFactor, partitions);
+    createSupplier(tx, scalingFactor, partitions);
+    createPartsupp(tx, scalingFactor, partitions);
+    createCustomer(tx, scalingFactor, partitions);
+    createOrder(tx, scalingFactor, partitions);
+    createLineitem(tx, scalingFactor, partitions);
 }
 
 template<class T>
@@ -403,8 +401,7 @@ void populateTable(std::string &tableName, const uint64_t &startKey, const std::
 
 template<class ClientType, class FiberType>
 struct DBGenBase {
-    void createSchema(ClientType& connection);
-    ClientType getClient(std::string &storage, std::string &commitMananger);
+    void createSchema(ClientType& connection, double scalingFactor, int partitions);
     void threaded_populate(ClientType &client, std::queue<FiberType> &fibers,
             std::string &tableName, const uint64_t &startKey, const std::shared_ptr<std::stringstream> &data);
     void join(FiberType &fiber);
@@ -412,8 +409,7 @@ struct DBGenBase {
 
 template<>
 struct DBGenBase<TellClient, TellFiber> {
-    void createSchema(TellClient& connection);
-    TellClient getClient(std::string &storage, std::string &commitMananger);
+    void createSchema(TellClient& connection, double scalingFactor, int partitions);
     void threaded_populate(TellClient &client, std::queue<TellFiber> &fibers,
             std::string &tableName, const uint64_t &startKey, const std::shared_ptr<std::stringstream> &data);
     void join(TellFiber &fiber);
@@ -424,8 +420,7 @@ extern template struct DBGenBase<TellClient, TellFiber>;
 #ifdef USE_KUDU
 template<>
 struct DBGenBase<KuduClient, KuduFiber> {
-    void createSchema(KuduClient& connection);
-    KuduClient getClient(std::string &storage, std::string &commitMananger);
+    void createSchema(KuduClient& connection, double scalingFactor, int partitions);
     void threaded_populate(KuduClient &client, std::queue<KuduFiber> &fibers,
             std::string &tableName, const uint64_t &startKey, const std::shared_ptr<std::stringstream> &data);
     void join(KuduFiber &fiber);
@@ -437,12 +432,18 @@ extern template struct DBGenBase<KuduClient, KuduFiber>;
 template<class ClientType, class FiberType>
 struct DBGenerator : public DBGenBase<ClientType, FiberType> {
 
-    void createSchemaAndPopulate(std::string &storage, std::string &commitManager, std::string &baseDir) {
-        ClientType client = this->getClient(storage, commitManager);
-        this->createSchema(client);
+    void createTables (ClientType &client, double scalingFactor, int partitions) {
+        this->createSchema(client, scalingFactor, partitions);
+    }
 
+    void populate(ClientType &client, std::string &baseDir, uint32_t partIndex) {
         for (std::string tableName : {"part", "partsupp", "supplier", "customer", "orders", "lineitem", "nation", "region"}) {
-            getFiles(baseDir, tableName, [this, &client, &tableName] (const std::string& fileName) {
+            std::string fileName = baseDir + "/" + tableName + ".tbl";
+            if (partIndex > 0)
+                fileName += ("." + std::to_string(partIndex));
+            if (!file_readable(fileName)) {
+                LOG_WARN("Could not find file %1% for population", fileName);
+            }
             std::cout << "Reading " << fileName << std::endl;
             std::fstream in(fileName.c_str(), std::ios_base::in);
             std::string line;
@@ -470,7 +471,6 @@ struct DBGenerator : public DBGenBase<ClientType, FiberType> {
             }
 
             std::cout << std::endl << std::endl;
-            });
         }
         std::cout << "Done" << std::endl;
         std::cout << '\a';

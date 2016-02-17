@@ -21,6 +21,7 @@
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
 #include "Connection.hpp"
+
 #include <telldb/Transaction.hpp>
 #include "Transactions.hpp"
 
@@ -29,28 +30,31 @@ using namespace boost::asio;
 namespace tpch {
 
 template<>
-Connection<TellClient>::~Connection();
+Connection<TellClient, TellFiber>::~Connection();
 
 template<>
 class CommandImpl<TellClient> {
-    Connection<TellClient> *mConnection;
+    Connection<TellClient, TellFiber> *mConnection;
     server::Server<CommandImpl<TellClient>> mServer;
     boost::asio::io_service& mService;
     TellClient mClient;
     std::unique_ptr<tell::db::TransactionFiber<void>> mFiber;
     Transactions mTransactions;
+    DBGenerator<TellClient, TellFiber> &mGenerator;
 
 public:
     CommandImpl(
-            Connection<TellClient> *connection,
+            Connection<TellClient, TellFiber> *connection,
             boost::asio::ip::tcp::socket& socket,
             boost::asio::io_service& service,
-            TellClient client
+            TellClient client,
+            DBGenerator<TellClient, TellFiber> &generator
     )
         : mConnection(connection)
         , mServer(*this, socket)
         , mService(service)
         , mClient(client)
+        , mGenerator(generator)
     {}
 
     void run() {
@@ -59,6 +63,39 @@ public:
 
     void close() {
          delete mConnection;
+    }
+
+    template<Command C, class Callback>
+    typename std::enable_if<C == Command::CREATE_SCHEMA, void>::type
+    execute(const typename Signature<C>::arguments& args, const Callback callback) {
+        bool success;
+        crossbow::string msg;
+        try {
+            mGenerator.createSchema(mClient, args, 0);
+            success = true;
+        } catch (std::exception& ex) {
+            success = false;
+            msg = ex.what();
+        }
+        callback(std::make_tuple(success, msg));
+    }
+
+    template<Command C, class Callback>
+    typename std::enable_if<C == Command::POPULATE, void>::type
+    execute(const typename Signature<C>::arguments& args, const Callback callback) {
+        bool success;
+        crossbow::string msg;
+        uint32_t partIndex = std::get<0>(args);
+        const crossbow::string &baseDir = std::get<1>(args);
+        std::string bd (baseDir.c_str(), baseDir.size());
+        try {
+            mGenerator.populate(mClient, bd, partIndex);
+            success = true;
+        } catch (std::exception& ex) {
+            success = false;
+            msg = ex.what();
+        }
+        callback(std::make_tuple(success, msg));
     }
 
     template<Command C, class Callback>
@@ -101,27 +138,26 @@ public:
 };
 
 template<>
-Connection<TellClient>::Connection(boost::asio::io_service& service, TellClient &client)
+Connection<TellClient, TellFiber>::Connection(boost::asio::io_service& service, TellClient &client, DBGenerator<TellClient, TellFiber> &generator, int)
     : mSocket(service)
-    , mImpl(new CommandImpl<TellClient>(this, mSocket, service, client))
+    , mImpl(new CommandImpl<TellClient>(this, mSocket, service, client, generator))
 {}
 
 template<>
-Connection<TellClient>::~Connection() = default;
+Connection<TellClient, TellFiber>::~Connection() = default;
 
 template<>
-void Connection<TellClient>::run() {
+void Connection<TellClient, TellFiber>::run() {
     mImpl->run();
 }
 
 template<>
-TellClient Connection<TellClient>::getClient(std::string &storage, std::string &commitManager) {
+TellClient Connection<TellClient, TellFiber>::getClient(std::string &storage, std::string &commitManager, size_t networkThreads) {
     tell::store::ClientConfig clientConfig;
     clientConfig.tellStore = tell::store::ClientConfig::parseTellStore(storage);
     clientConfig.commitManager = crossbow::infinio::Endpoint(crossbow::infinio::Endpoint::ipv4(), commitManager.c_str());
-    clientConfig.numNetworkThreads = 7;
+    clientConfig.numNetworkThreads = networkThreads;
     return std::make_shared<TellClientImpl>(std::move(clientConfig));
 }
 
 } // namespace tpch
-

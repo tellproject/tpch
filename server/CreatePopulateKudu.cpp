@@ -22,16 +22,11 @@
  */
 #include "CreatePopulate.hpp"
 
+#include "KuduUtil.hpp"
+
 namespace tpch {
 
 using namespace kudu::client;
-
-void assertOk(kudu::Status status) {
-    if (!status.ok()) {
-        LOG_ERROR("ERROR from Kudu: %1%", status.message().ToString());
-        throw std::runtime_error(status.message().ToString().c_str());
-    }
-}
 
 template<>
 struct TableCreator<kudu::client::KuduSession> {
@@ -79,13 +74,32 @@ struct TableCreator<kudu::client::KuduSession> {
         schemaBuilder.SetPrimaryKey(key);
     }
 
-    void create(const std::string& name) {
+    void create(const std::string& name, double scalingFactor, int partitions) {
+        int numItems = 0;
+        if (name == "part") {
+            numItems = 200000 * scalingFactor;
+        } else if (name == "partsupp") {
+            numItems = 800000 * scalingFactor;
+        } else if (name == "supplier") {
+            numItems = 10000 * scalingFactor;
+        } else if (name == "customer") {
+            numItems = 150000 * scalingFactor;
+        } else if (name == "orders") {
+            numItems = 1500000 * scalingFactor;
+        } else if (name == "lineitem") {
+            numItems = 6000000 * scalingFactor;
+        }
+
         KuduSchema schema;
         assertOk(schemaBuilder.Build(&schema));
-
         tableCreator->schema(&schema);
         tableCreator->table_name(name);
-        tableCreator->Create();
+        if (numItems > 0) {
+            auto splits = createRangePartitioning(numItems, partitions, schema);
+            tableCreator->split_rows(splits);
+        }
+        assertOk(tableCreator->Create());
+        tableCreator.reset(nullptr);
     }
 };
 
@@ -169,20 +183,12 @@ struct string_type<KuduSession> {
     using type = std::string;
 };
 
-void DBGenBase<KuduClient, KuduFiber>::createSchema(KuduClient& client) {
+void DBGenBase<KuduClient, KuduFiber>::createSchema(KuduClient& client, double scalingFactor, int partitions) {
     auto session = client->NewSession();
     assertOk(session->SetFlushMode(kudu::client::KuduSession::MANUAL_FLUSH));
     session->SetTimeoutMillis(60000);
-    createTables(*session);
+    createTables(*session, scalingFactor, partitions);
     assertOk(session->Close());
-}
-
-KuduClient DBGenBase<KuduClient, KuduFiber>::getClient(std::string &storage, std::string&) {
-    kudu::client::KuduClientBuilder clientBuilder;
-    clientBuilder.add_master_server_addr(storage);
-    std::tr1::shared_ptr<kudu::client::KuduClient> client;
-    clientBuilder.Build(&client);
-    return client;
 }
 
 void DBGenBase<KuduClient, KuduFiber>::threaded_populate(KuduClient &client, std::queue<KuduFiber> &threads,
@@ -199,6 +205,8 @@ void DBGenBase<KuduClient, KuduFiber>::threaded_populate(KuduClient &client, std
         populateTable(tableName, startKey, data, populate);
         assertOk(session->Flush());
         assertOk(session->Close());
+        std::cout << '.';
+        std::cout.flush();
     });
 }
 

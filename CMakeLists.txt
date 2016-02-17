@@ -46,6 +46,7 @@ if(${USE_KUDU})
 
     set(SERVER_SRC
         ${SERVER_SRC}
+        server/KuduUtil.cpp
         server/TransactionsKudu.cpp
         server/ConnectionKudu.cpp
         server/CreatePopulateKudu.cpp

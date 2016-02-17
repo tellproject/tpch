@@ -33,38 +33,24 @@
 #include <kudu/client/client.h>
 #endif
 
+#include "CreatePopulate.hpp"
+
 namespace tpch {
-
-// copy-pasted from client/CreatePopulate.hpp
-struct TellClientImpl {
-    tell::store::ClientConfig clientConfig;
-    tell::db::ClientManager<void> clientManager;
-
-    TellClientImpl(tell::store::ClientConfig&& config)
-        : clientConfig(std::move(config))
-        , clientManager(clientConfig)
-    {}
-};
-using TellClient = std::shared_ptr<TellClientImpl>;
-
-#ifdef USE_KUDU
-using KuduClient = std::tr1::shared_ptr<kudu::client::KuduClient>;
-#endif
 
 template <class T>
 class CommandImpl;
 
-template <class T>  // TellClient or KuduClient
+template <class ClientType, class FiberType>  // <TellClient, TellFiber> or <KuduClient, KuduFiber>
 class Connection {
     boost::asio::ip::tcp::socket mSocket;
-    std::unique_ptr<CommandImpl<T>> mImpl;
+    std::unique_ptr<CommandImpl<ClientType>> mImpl;
 public:
-    Connection(boost::asio::io_service& service, T& client);
+    Connection(boost::asio::io_service& service, ClientType& client, DBGenerator<ClientType, FiberType>& generator, int partitions);
     ~Connection();
     decltype(mSocket)& socket() { return mSocket; }
     void run();
 public:
-    static T getClient(std::string &storage, std::string &commitMananger);
+    static ClientType getClient(std::string &storage, std::string &commitMananger, size_t networkThreads);
 };
 
 } // namespace tpch

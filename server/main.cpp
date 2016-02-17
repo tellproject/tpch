@@ -20,7 +20,6 @@
  *     Kevin Bocksrocker <kevin.bocksrocker@gmail.com>
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
-#include "Connection.hpp"
 #include <crossbow/allocator.hpp>
 #include <crossbow/program_options.hpp>
 #include <crossbow/logger.hpp>
@@ -30,22 +29,26 @@
 #include <string>
 #include <iostream>
 
+#include "Connection.hpp"
+
 using namespace crossbow::program_options;
 using namespace boost::asio;
 
-template<class T>
+template<class ClientType, class FiberType>
 void accept(boost::asio::io_service &service,
         boost::asio::ip::tcp::acceptor &a,
-        T& client) {
-    auto conn = new tpch::Connection<T>(service, client);
-    a.async_accept(conn->socket(), [conn, &service, &a, &client](const boost::system::error_code &err) {
+        ClientType& client,
+        tpch::DBGenerator<ClientType, FiberType>& generator,
+        int partitions) {
+    auto conn = new tpch::Connection<ClientType, FiberType>(service, client, generator, partitions);
+    a.async_accept(conn->socket(), [conn, &service, &a, &client, &generator, partitions](const boost::system::error_code &err) {
         if (err) {
             delete conn;
             LOG_ERROR(err.message());
             return;
         }
         conn->run();
-        accept(service, a, client);
+        accept(service, a, client, generator, partitions);
     });
 }
 
@@ -57,22 +60,28 @@ int main(int argc, const char** argv) {
     std::string commitManager;
     std::string storageNodes;
     size_t numThreads = 4;
+    int partitions = -1;
     bool useKudu = false;
     auto opts = create_options("tpch_server",
             value<'h'>("help", &help, tag::description{"print help"}),
             value<'H'>("host", &host, tag::description{"Host to bind to"}),
             value<'p'>("port", &port, tag::description{"Port to bind to"}),
+            value<'P'>("partitions", &partitions, tag::description{"Number of partitions per table"}),
             value<'l'>("log-level", &logLevel, tag::description{"The log level"}),
             value<'c'>("commit-manager", &commitManager, tag::description{"Address to the commit manager"}),
             value<'s'>("storage-nodes", &storageNodes, tag::description{"Semicolon-separated list of storage node addresses"}),
             value<'k'>("kudu", &useKudu, tag::description{"use kudu instead of TellStore"}),
-            value<'n'>("network-threads", &numThreads, tag::ignore_short<true>{})
+            value<-1>("network-threads", &numThreads, tag::ignore_short<true>{})
             );
     try {
         parse(opts, argc, argv);
     } catch (argument_not_found& e) {
         std::cerr << e.what() << std::endl << std::endl;
         print_help(std::cout, opts);
+        return 1;
+    }
+    if (useKudu && partitions == -1) {
+        std::cerr << "Number of partitions needs to be set" << std::endl;
         return 1;
     }
     if (help) {
@@ -119,8 +128,10 @@ int main(int argc, const char** argv) {
         // we do not need to delete this object, it will delete itself
         if (useKudu) {
 #ifdef USE_KUDU
-            auto client = tpch::Connection<tpch::KuduClient>::getClient(storageNodes, commitManager);
-            accept(service, a, client);
+            tpch::DBGenerator<tpch::KuduClient, tpch::KuduFiber> generator;
+            auto client = tpch::Connection<tpch::KuduClient, tpch::KuduFiber>::getClient(
+                    storageNodes, commitManager, numThreads);
+            accept(service, a, client, generator, partitions);
             std::vector<std::thread> threads;
             for (unsigned i = 0; i < numThreads; ++i) {
                 threads.emplace_back([&service](){
@@ -135,8 +146,10 @@ int main(int argc, const char** argv) {
                 return 1;
 #endif
         } else {
-            auto client = tpch::Connection<tpch::TellClient>::getClient(storageNodes, commitManager);
-            accept(service, a, client);
+            tpch::DBGenerator<tpch::TellClient, tpch::TellFiber> generator;
+            auto client = tpch::Connection<tpch::TellClient, tpch::TellFiber>::getClient(
+                    storageNodes, commitManager, numThreads);
+            accept(service, a, client, generator, partitions);
             service.run();
         }
     } catch (std::exception& e) {

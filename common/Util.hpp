@@ -63,11 +63,11 @@ uint64_t convertSqlDateToMilliSecs(const std::string& dateString);
 // is this a readable file?
 bool file_readable(const std::string& fileName);
 
-// get files from a base directory, with a certain filename (e.g. lineitem), and a certain suffix (e.g. tbl or tbl.u)
-// if it should include parts, the function also searches for part files (e.g. lineitem.tbl.1)
-// applies function fun to the readible files that match the description
-template<class Fun>
-void getFiles(const std::string& baseDir, const std::string& fileName,const std::string& suffix, Fun fun, const bool includeParts = true);
+//// get files from a base directory, with a certain filename (e.g. lineitem), and a certain suffix (e.g. tbl or tbl.u)
+//// if it should include parts, the function also searches for part files (e.g. lineitem.tbl.1)
+//// applies function fun to the readible files that match the description
+//template<class Fun>
+//void getFiles(const std::string& baseDir, const std::string& fileName,const std::string& suffix, Fun fun, const bool includeParts = true);
 
 // extracts scalingFactor from baseDir (convention is that the name of this directory
 // has to be equal to the scaling factor of the files it contains

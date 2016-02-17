@@ -58,20 +58,20 @@ bool file_readable(const std::string& fileName) {
     return in.good();
 }
 
-template<class Fun>
-void getFiles(const std::string& baseDir, const std::string& fileName, const std::string &suffix, Fun fun, const bool includeParts) {
-    int part = 1;
-    auto fName = baseDir + "/" + fileName + "." + suffix;
-    if (file_readable(fName)) {
-        fun(fName);
-    }
-    while (includeParts) {
-        auto filename = fName + "." + std::to_string(part);
-        if (!file_readable(filename)) break;
-        fun(filename);
-        ++part;
-    }
-}
+//template<class Fun>
+//void getFiles(const std::string& baseDir, const std::string& fileName, const std::string &suffix, Fun fun, const bool includeParts) {
+//    int part = 1;
+//    auto fName = baseDir + "/" + fileName + "." + suffix;
+//    if (file_readable(fName)) {
+//        fun(fName);
+//    }
+//    while (includeParts) {
+//        auto filename = fName + "." + std::to_string(part);
+//        if (!file_readable(filename)) break;
+//        fun(filename);
+//        ++part;
+//    }
+//}
 
 double getScalingFactor(const std::string& baseDir) {
     auto splits = split(baseDir, '/');

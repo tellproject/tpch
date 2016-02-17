@@ -79,14 +79,6 @@ int main(int argc, const char** argv) {
 
     crossbow::allocator::init();
 
-//            tpch::DBGenerator<tpch::KuduClient, tpch::KuduFiber> generator;
-//            generator.createSchemaAndPopulate(storage, commitManager, baseDir);
-//            return 0;
-//        } else {
-//            tpch::DBGenerator<tpch::TellClient, tpch::TellFiber> generator;
-//            generator.createSchemaAndPopulate(storage, commitManager, baseDir);
-//            return 0;
-//        }
     if (host.empty()) {
         std::cerr << "No host\n";
         return 1;
@@ -167,7 +159,8 @@ int main(int argc, const char** argv) {
                 }
 
                 auto& cmds = clients[0].commands();
-                cmds.execute<tpch::Command::POPULATE_DIM_TABLES>([&clients, &baseDir, &scalingFactor](const err_code& ec, const std::tuple<bool, crossbow::string>& res){
+                // populates regions and nations, and other tables if they are not split
+                cmds.execute<tpch::Command::POPULATE>([&clients, &baseDir, &scalingFactor](const err_code& ec, const std::tuple<bool, crossbow::string>& res){
                     if (ec) {
                         LOG_ERROR(ec.message());
                         return;
@@ -177,10 +170,11 @@ int main(int argc, const char** argv) {
                         return;
                     }
 
+                    // populates split files of other tables
                     for (uint32_t i = 0; i < clients.size(); ++i) {
                         clients[i].populate(baseDir, i);
                     }
-                }, crossbow::string(baseDir.c_str(), baseDir.size()));
+                }, std::make_pair(uint32_t(0), crossbow::string(baseDir)));
             }, scalingFactor);
         } else {
             for (auto& client : clients) {
@@ -199,9 +193,6 @@ END:
                 switch (e.transaction) {
                 case tpch::Command::CREATE_SCHEMA:
                     tName = "Create schema";
-                    break;
-                case tpch::Command::POPULATE_DIM_TABLES:
-                    tName = "Populate dim tables";
                     break;
                 case tpch::Command::POPULATE:
                     tName = "Populate remaining tables";
