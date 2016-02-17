@@ -105,8 +105,9 @@ RF2Out Transactions::rf2(tell::db::Transaction &tx, const RF2In &in)
         // get futures in reverse order
         for (auto orderIdIter = in.orderIds.rbegin(); orderIdIter < in.orderIds.rend(); ++orderIdIter) {
             auto lower = tx.lower_bound(oTable, "o_orderkey_idx", {Field(int32_t(*orderIdIter))});
-            if (lower.done())
+            if (lower.done()) {
                 LOG_ERROR("order with orderkey " + std::to_string(*orderIdIter) + "could not be deleted because it does not exist!");
+            }
             orderKeys.emplace_back(lower.value());
             oTupleFutures.emplace_back(tx.get(oTable, orderKeys.back()));
         }

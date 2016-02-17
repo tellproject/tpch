@@ -54,6 +54,7 @@ int main(int argc, const char** argv) {
     std::string storage = "localhost";          // used only for population
     std::string commitManager = "localhost";    // used only for population
     std::string baseDir = "/mnt/local/tell/tpch_2_17_0/dbgen"; // used only for population
+    uint batchSize = 1500;
     bool exit = false;
     auto opts = create_options("tpch_client",
             value<'h'>("help", &help, tag::description{"print help"})
@@ -67,6 +68,7 @@ int main(int argc, const char** argv) {
             , value<'x'>("commit-manager", &commitManager, tag::description{"address of the commit manager (only necessary for population)"})
             , value<'d'>("base-dir", &baseDir, tag::description{"Base directory to the generated tbl/upd/del files"})
             , value<'k'>("kudu", &use_kudu, tag::description{"use kudu instead of TellStore"})
+            , value<'b'>("batch-size", &batchSize, tag::description{"Batch Size for RF1/RF2 to be logged."})
             , value<-1>("exit", &exit, tag::description{"Quit server"})
             );
     try {
@@ -119,7 +121,7 @@ int main(int argc, const char** argv) {
             std::vector<std::thread> threads;
             for (decltype(sumClients) i = 0; i < sumClients; ++i) {
                 threads.emplace_back([&, i](){
-                    clients.emplace_back(service, endTime, baseDir, uint(i));
+                    clients.emplace_back(service, endTime, batchSize, baseDir, uint(i));
                 });
             }
             for (auto &thread: threads)

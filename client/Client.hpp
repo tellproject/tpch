@@ -43,7 +43,7 @@ struct LogEntry {
 
 static const std::string orderFilePrefix = "orders.tbl.u";
 static const std::string lineitemFilePrefix = "lineitem.tbl.u";
-static const uint orderBatchSize = 100;
+static const uint orderBatchSize = 100; // size of sub-batches of an update batch to be sent to the server
 
 class Client {
     using Socket = boost::asio::ip::tcp::socket;
@@ -51,13 +51,18 @@ class Client {
     client::CommandsImpl mCmds;
     std::vector<Order> mOrders;
     std::vector<int32_t> mDeletes;
-    uint mCurrentIdx;
+    uint mCurrentStartIdx;
     bool mDoInsert; // true for RF1, false for RF2
+    const uint mUpdateBatchSize;  // batch size to be logged as an update
+    uint mBatchCounter;
+    bool mIsLast;   // is last subbatch of a batch
+    decltype(Clock::now()) mBatchStartTime;
     std::deque<LogEntry> mLog;
     decltype(Clock::now()) mEndTime;
 
 public:
-    Client(boost::asio::io_service& service, decltype(Clock::now()) endTime, const std::string &baseDir, const uint &updateFileIndex);
+    Client(boost::asio::io_service& service, decltype(Clock::now()) endTime, const uint updateBatchSize,
+            const std::string &baseDir, const uint &updateFileIndex);
 
     Socket& socket() {
         return mSocket;
@@ -68,7 +73,7 @@ public:
     client::CommandsImpl& commands() {
         return mCmds;
     }
-    void run(); // executes RF1 (with 1500 inserted orders) after RF2 (the same 1500 orders deleted) repeatedly from input file
+    void run(); // executes RF1 (with mUpdateBatchSize inserted orders), followed by RF2 (the same orders deleted) repeatedly
     const std::deque<LogEntry>& log() const { return mLog; }
 private:
     template<Command C>
