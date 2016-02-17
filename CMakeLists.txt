@@ -39,7 +39,7 @@ set(CLIENT_SRC
 
 set(USE_KUDU OFF CACHE BOOL "Build TPC-H additionally for Kudu")
 if(${USE_KUDU})
-    set(kuduClient_DIR "/usr/local/share/kuduClient/cmake")
+    set(kuduClient_DIR "/mnt/local/tell/kudu_install/share/kuduClient/cmake")
     find_package(kuduClient REQUIRED)
     message(STATUS "Kudu header found at ${KUDU_CLIENT_INCLUDE_DIR}")
 

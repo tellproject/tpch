@@ -145,7 +145,7 @@ struct Populator<KuduSession> {
     void operator() (Str1&& name, Str2&& val) {
         names.emplace_back(std::forward<Str1>(name));
         vals.emplace_back(std::forward<Str2>(val));
-        assertOk(row->SetString(names.back(), vals.back()));
+        assertOk(row->SetStringCopy(names.back(), vals.back()));
     }
 
     void apply(uint64_t k) {
