@@ -28,7 +28,6 @@
 #include "boost/date_time/posix_time/posix_time.hpp"
 namespace tpch {
 
-// splitting strings
 std::vector<std::string> split(const std::string& str, const char delim) {
     std::stringstream ss(str);
     std::string item;
@@ -39,8 +38,6 @@ std::vector<std::string> split(const std::string& str, const char delim) {
     }
     return result;
 }
-
-
 
 uint64_t convertSqlDateToMilliSecs(const std::string& dateString)
 {
@@ -56,9 +53,29 @@ uint64_t convertSqlDateToMilliSecs(const std::string& dateString)
     return diff.total_milliseconds();
 }
 
-//int64_t now() {
-//    auto now = std::chrono::system_clock::now();
-//    std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-//}
-
+bool file_readable(const std::string& fileName) {
+    std::ifstream in(fileName.c_str());
+    return in.good();
 }
+
+template<class Fun>
+void getFiles(const std::string& baseDir, const std::string& fileName, const std::string &suffix, Fun fun, const bool includeParts) {
+    int part = 1;
+    auto fName = baseDir + "/" + fileName + "." + suffix;
+    if (file_readable(fName)) {
+        fun(fName);
+    }
+    while (includeParts) {
+        auto filename = fName + "." + std::to_string(part);
+        if (!file_readable(filename)) break;
+        fun(filename);
+        ++part;
+    }
+}
+
+double getScalingFactor(const std::string& baseDir) {
+    auto splits = split(baseDir, '/');
+    return std::stod(splits[splits.size()-1]);
+}
+
+} // namespace tpch

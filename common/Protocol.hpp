@@ -58,12 +58,33 @@
 
 namespace tpch {
 
-#define COMMANDS (EXIT, RF1, RF2)
+#define COMMANDS (CREATE_SCHEMA, POPULATE_DIM_TABLES, POPULATE, EXIT, RF1, RF2)
 
 GEN_COMMANDS(Command, COMMANDS);
 
 template<Command C>
 struct Signature;
+
+template<>
+struct Signature<Command::CREATE_SCHEMA> {
+    using result = std::tuple<bool, crossbow::string>;
+    using arguments = double;    // scaling factor
+};
+
+// populate region and nation table
+template<>
+struct Signature<Command::POPULATE_DIM_TABLES> {
+    using result = std::tuple<bool, crossbow::string>;
+    using arguments = crossbow::string;     // base-dir
+};
+
+// populate a part of each remaining table
+template<>
+struct Signature<Command::POPULATE> {
+    using result = std::tuple<bool, crossbow::string>;
+    using arguments = std::pair<uint32_t, crossbow::string>;    // part index, base-dir
+};
+
 
 template<>
 struct Signature<Command::EXIT> {

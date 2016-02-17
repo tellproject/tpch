@@ -29,10 +29,9 @@
 #include <memory>
 #include <thread>
 
-#include <boost/lexical_cast.hpp>
-#include <boost/date_time.hpp>
-
 #include <telldb/TellDB.hpp>
+
+#include "common/Util.hpp"
 
 #ifdef USE_KUDU
 #include <kudu/client/client.h>
@@ -204,84 +203,8 @@ void createTables(T& tx) {
     createRegion(tx);
 }
 
-struct date {
-    int64_t value;
-
-    date() : value(0) {}
-
-    date(const std::string& str) {
-        using namespace boost::posix_time;
-        ptime epoch(boost::gregorian::date(1970, 1, 1));
-        auto time = time_from_string(str + " 00:00:00");
-        value = (time - epoch).total_milliseconds();
-    }
-
-    operator int64_t() const {
-        return value;
-    }
-};
-
 template<class T>
 struct Populator;
-
-template<class Dest>
-struct tpch_caster {
-    Dest operator() (std::string&& str) const {
-        return boost::lexical_cast<Dest>(str);
-    }
-};
-
-template<>
-struct tpch_caster<date> {
-    date operator() (std::string&& str) const {
-        return date(str);
-    }
-};
-
-template<>
-struct tpch_caster<std::string> {
-    std::string operator() (std::string&& str) const {
-        return std::move(str);
-    }
-};
-
-template<>
-struct tpch_caster<crossbow::string> {
-    crossbow::string operator() (std::string&& str) const {
-        return crossbow::string(str.begin(), str.end());
-    }
-};
-
-template<class T, size_t P>
-struct TupleWriter {
-    TupleWriter<T, P - 1> next;
-    void operator() (T& res, std::stringstream& ss) const {
-        constexpr size_t total_size = std::tuple_size<T>::value;
-        tpch_caster<typename std::tuple_element<total_size - P, T>::type> cast;
-        std::string field;
-        std::getline(ss, field, '|');
-        std::get<total_size - P>(res) = cast(std::move(field));
-        next(res, ss);
-    }
-};
-
-template<class T>
-struct TupleWriter<T, 0> {
-    void operator() (T& res, std::stringstream& ss) const {
-    }
-};
-
-template<class Tuple, class Fun>
-void getFields(std::istream& in, Fun fun) {
-    std::string line;
-    Tuple tuple;
-    TupleWriter<Tuple, std::tuple_size<Tuple>::value> writer;
-    while (std::getline(in, line)) {
-        std::stringstream ss(line);
-        writer(tuple, ss);
-        fun(tuple);
-    }
-}
 
 template<class T>
 struct string_type;
@@ -475,26 +398,6 @@ void populateTable(std::string &tableName, const uint64_t &startKey, const std::
     } else {
         std::cerr << "Table " << tableName << " does not exist" << std::endl;
         std::terminate();
-    }
-}
-
-inline bool file_readable(const std::string& fileName) {
-    std::ifstream in(fileName.c_str());
-    return in.good();
-}
-
-template<class Fun>
-void getFiles(const std::string& baseDir, const std::string& tableName, Fun fun) {
-    int part = 1;
-    auto fName = baseDir + "/" + tableName + ".tbl";
-    if (file_readable(fName)) {
-        fun(fName);
-    }
-    while (true) {
-        auto filename = fName + "." + std::to_string(part);
-        if (!file_readable(filename)) break;
-        fun(filename);
-        ++part;
     }
 }
 
