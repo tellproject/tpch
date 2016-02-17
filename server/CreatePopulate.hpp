@@ -178,7 +178,7 @@ void createNation(T& tx) {
     tc("n_regionkey", type::INT);
     tc("n_comment", type::TEXT);
     tc.setPrimaryKey({"n_nationkey"});
-    tc.create("nation");
+    tc.create("nation", 0, 0);
 }
 
 template<class T>
@@ -188,7 +188,7 @@ void createRegion(T& tx) {
     tc("r_name", type::TEXT);
     tc("r_comment", type::TEXT);
     tc.setPrimaryKey({"r_regionkey"});
-    tc.create("region");
+    tc.create("region", 0, 0);
 }
 
 template<class T>
