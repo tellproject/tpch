@@ -95,14 +95,9 @@ int main(int argc, const char** argv) {
         auto sumClients = hosts.size() * numClients;
         std::vector<tpch::Client> clients;
         clients.reserve(sumClients);
-        std::vector<std::thread> threads;
         for (decltype(sumClients) i = 0; i < sumClients; ++i) {
-            threads.emplace_back([&, i](){
-                clients.emplace_back(service, endTime, batchSize, baseDir, uint(i), !populate);
-            });
+            clients.emplace_back(service, endTime, batchSize);
         }
-        for (auto &thread: threads)
-            thread.join();
         LOG_DEBUG("Client creation finished.");
 
         for (size_t i = 0; i < hosts.size(); ++i) {
@@ -177,6 +172,18 @@ int main(int argc, const char** argv) {
                 }, std::make_pair(uint32_t(0), crossbow::string(baseDir)));
             }, scalingFactor);
         } else {
+            std::vector<std::thread> threads;
+            threads.reserve(threads.size());
+            for (uint32_t i = 0; i < clients.size(); ++i) {
+                threads.emplace_back([&, i]{
+                    clients[i].prepare(baseDir, uint(i));  
+                }); 
+            }
+
+            for (auto &thread: threads) {
+                thread.join(); 
+            }
+
             for (auto& client : clients) {
                 client.run();
             }

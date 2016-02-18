@@ -61,8 +61,7 @@ class Client {
     decltype(Clock::now()) mEndTime;
 
 public:
-    Client(boost::asio::io_service& service, decltype(Clock::now()) endTime, const uint updateBatchSize,
-            const std::string &baseDir, const uint &updateFileIndex, bool initializeUpdates);
+    Client(boost::asio::io_service& service, decltype(Clock::now()) endTime, const uint updateBatchSize);
 
     Socket& socket() {
         return mSocket;
@@ -73,6 +72,7 @@ public:
     client::CommandsImpl& commands() {
         return mCmds;
     }
+    void prepare(const std::string &baseDir, const uint &updateFileIndex);
     void run(); // executes RF1 (with mUpdateBatchSize inserted orders), followed by RF2 (the same orders deleted) repeatedly
     void populate(const std::string &baseDir, const uint32_t &updateFileIndex);
     const std::deque<LogEntry>& log() const { return mLog; }
