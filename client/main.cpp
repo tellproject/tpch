@@ -93,10 +93,10 @@ int main(int argc, const char** argv) {
         // do client creation multi-threaded as it may take a while
         LOG_DEBUG("Start client creation.");
         auto sumClients = hosts.size() * numClients;
-        std::vector<tpch::Client> clients;
+        std::vector<std::unique_ptr<tpch::Client>> clients;
         clients.reserve(sumClients);
         for (decltype(sumClients) i = 0; i < sumClients; ++i) {
-            clients.emplace_back(service, endTime, batchSize);
+            clients.emplace_back(new tpch::Client(service, endTime, batchSize));
         }
         LOG_DEBUG("Client creation finished.");
 
@@ -114,7 +114,7 @@ int main(int argc, const char** argv) {
             }
             for (unsigned j = 0; j < numClients; ++j) {
                 LOG_INFO("Connected to client " + crossbow::to_string(i*numClients + j));
-                boost::asio::connect(clients[i*numClients + j].socket(), iter);
+                boost::asio::connect(clients[i*numClients + j]->socket(), iter);
             }
         }
 
@@ -128,7 +128,7 @@ int main(int argc, const char** argv) {
 
         if (exit) {
             for (auto& client : clients) {
-                auto& cmds = client.commands();
+                auto& cmds = client->commands();
                 cmds.execute<tpch::Command::EXIT>([](const err_code& ec){
                     if (ec) {
                         std::cerr << "ERROR: " << ec.message() << std::endl;
@@ -139,7 +139,7 @@ int main(int argc, const char** argv) {
         }
 
         if (populate) {
-            auto& cmds = clients[0].commands();
+            auto& cmds = clients[0]->commands();
             double scalingFactor = tpch::getScalingFactor(baseDir);
             cmds.execute<tpch::Command::CREATE_SCHEMA>(
                     [&clients, &baseDir, &scalingFactor](const err_code& ec,
@@ -153,7 +153,7 @@ int main(int argc, const char** argv) {
                     return;
                 }
 
-                auto& cmds = clients[0].commands();
+                auto& cmds = clients[0]->commands();
                 // populates regions and nations, and other tables if they are not split
                 cmds.execute<tpch::Command::POPULATE>([&clients, &baseDir, &scalingFactor](const err_code& ec, const std::tuple<bool, crossbow::string>& res){
                     if (ec) {
@@ -167,7 +167,7 @@ int main(int argc, const char** argv) {
 
                     // populates split files of other tables
                     for (uint32_t i = 0; i < clients.size(); ++i) {
-                        clients[i].populate(baseDir, i);
+                        clients[i]->populate(baseDir, i);
                     }
                 }, std::make_pair(uint32_t(0), crossbow::string(baseDir)));
             }, scalingFactor);
@@ -176,7 +176,7 @@ int main(int argc, const char** argv) {
             threads.reserve(threads.size());
             for (uint32_t i = 0; i < clients.size(); ++i) {
                 threads.emplace_back([&, i]{
-                    clients[i].prepare(baseDir, uint(i));  
+                    clients[i]->prepare(baseDir, uint(i));  
                 }); 
             }
 
@@ -185,7 +185,7 @@ int main(int argc, const char** argv) {
             }
 
             for (auto& client : clients) {
-                client.run();
+                client->run();
             }
         }
 END:
@@ -194,7 +194,7 @@ END:
         std::ofstream out(outFile.c_str());
         out << "start,end,transaction,success,error\n";
         for (const auto& client : clients) {
-            const auto& queue = client.log();
+            const auto& queue = client->log();
             for (const auto& e : queue) {
                 crossbow::string tName;
                 switch (e.transaction) {
