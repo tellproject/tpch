@@ -57,11 +57,11 @@ class Client {
     uint mBatchCounter;
     bool mIsLast;   // is last subbatch of a batch
     decltype(Clock::now()) mBatchStartTime;
-    std::deque<LogEntry> mLog;
     decltype(Clock::now()) mEndTime;
+    std::deque<LogEntry> mLog;
 
 public:
-    Client(boost::asio::io_service& service, decltype(Clock::now()) endTime, const uint updateBatchSize);
+    Client(boost::asio::io_service& service, const uint updateBatchSize);
 
     Socket& socket() {
         return mSocket;
@@ -72,11 +72,13 @@ public:
     client::CommandsImpl& commands() {
         return mCmds;
     }
-    void prepare(const std::string &baseDir, const uint &updateFileIndex);
-    void run(); // executes RF1 (with mUpdateBatchSize inserted orders), followed by RF2 (the same orders deleted) repeatedly
-    void populate(const std::string &baseDir, const uint32_t &updateFileIndex);
+    void prepare(const std::string &baseDir, const uint updateFileIndex);
+    // returns true when that file exists, which means there is potentially more files to populate from
+    bool populate(const std::string &baseDir, const uint32_t updateFileIndex);
+    void run(decltype(Clock::now()) endTime);
     const std::deque<LogEntry>& log() const { return mLog; }
 private:
+    void run(); // executes RF1 (with mUpdateBatchSize inserted orders), followed by RF2 (the same orders deleted) repeatedly
     template<Command C>
     void execute(const typename Signature<C>::arguments& arg);
 };

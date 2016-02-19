@@ -83,8 +83,7 @@ int main(int argc, const char** argv) {
         std::cerr << "No host\n";
         return 1;
     }
-    auto startTime = tpch::Clock::now();
-    auto endTime = startTime + std::chrono::seconds(time);
+
     crossbow::logger::logger->config.level = crossbow::logger::logLevelFromString(logLevel);
     try {
         auto hosts = tpch::split(host.c_str(), ',');
@@ -96,7 +95,7 @@ int main(int argc, const char** argv) {
         std::vector<std::unique_ptr<tpch::Client>> clients;
         clients.reserve(sumClients);
         for (decltype(sumClients) i = 0; i < sumClients; ++i) {
-            clients.emplace_back(new tpch::Client(service, endTime, batchSize));
+            clients.emplace_back(new tpch::Client(service, batchSize));
         }
         LOG_DEBUG("Client creation finished.");
 
@@ -114,7 +113,7 @@ int main(int argc, const char** argv) {
             }
             for (unsigned j = 0; j < numClients; ++j) {
                 LOG_INFO("Connected to client " + crossbow::to_string(i*numClients + j));
-                boost::asio::connect(clients[i*numClients + j]->socket(), iter);
+                boost::asio::connect(clients[j*hosts.size()+ i]->socket(), iter); // changed i and j to better distribute population requests to servers
             }
         }
 
@@ -125,6 +124,7 @@ int main(int argc, const char** argv) {
             dateString.resize(len);
             LOG_INFO("Starting client at %1%", dateString);
         }
+            auto startTime = tpch::Clock::now();
 
         if (exit) {
             for (auto& client : clients) {
@@ -166,8 +166,9 @@ int main(int argc, const char** argv) {
                     }
 
                     // populates split files of other tables
-                    for (uint32_t i = 0; i < clients.size(); ++i) {
-                        clients[i]->populate(baseDir, i);
+                    bool hasNext = true;
+                    for (uint32_t i = 0; hasNext; ++i) {
+                        hasNext = clients[(i+1) % clients.size()]->populate(baseDir, i);
                     }
                 }, std::make_pair(uint32_t(0), crossbow::string(baseDir)));
             }, scalingFactor);
@@ -184,8 +185,10 @@ int main(int argc, const char** argv) {
                 thread.join(); 
             }
 
+            startTime = tpch::Clock::now();
+            auto endTime = startTime + std::chrono::seconds(time);
             for (auto& client : clients) {
-                client->run();
+                client->run(endTime);
             }
         }
 END:
