@@ -162,7 +162,7 @@ struct Populator<KuduSession> {
         assertOk(row->SetStringCopy(names.back(), vals.back()));
     }
 
-    void apply(uint64_t k) {
+    void apply() {
         assertOk(session.Apply(ins.release()));
         ins.reset(table->NewInsert());
         row = ins->mutable_row();
@@ -192,17 +192,17 @@ void DBGenBase<KuduClient, KuduFiber>::createSchema(KuduClient& client, double s
 }
 
 void DBGenBase<KuduClient, KuduFiber>::threaded_populate(KuduClient &client, std::queue<KuduFiber> &threads,
-        std::string &tableName, const uint64_t &startKey, const std::shared_ptr<std::stringstream> &data) {
+        std::string &tableName, const std::shared_ptr<std::stringstream> data) {
     if (threads.size() >= 8) {
         threads.front().join();
         threads.pop();
     }
-    threads.emplace([&client, &tableName, data, startKey] () {
+    threads.emplace([&client, &tableName, data] () {
         auto session = client->NewSession();
         assertOk(session->SetFlushMode(kudu::client::KuduSession::MANUAL_FLUSH));
         session->SetTimeoutMillis(60000);
         Populate<kudu::client::KuduSession> populate(*session);
-        populateTable(tableName, startKey, data, populate);
+        populateTable(tableName, data, populate);
         assertOk(session->Flush());
         assertOk(session->Close());
         std::cout << '.';

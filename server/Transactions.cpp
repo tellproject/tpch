@@ -37,8 +37,8 @@ RF1Out Transactions::rf1(tell::db::Transaction &tx, const RF1In &in)
         auto lTable = lFuture.get();
         auto oTable = oFuture.get();
 
-        tell::db::Counter orderCounter(tx.getCounter("order_idx_counter"));
-        tell::db::Counter lineitemCounter(tx.getCounter("lineitem_idx_counter"));
+        tell::db::Counter orderCounter(tx.getCounter("orders_counter"));
+        tell::db::Counter lineitemCounter(tx.getCounter("lineitem_counter"));
 
         for (auto &order: in.orders) {
             tx.insert(oTable, tell::db::key_t{orderCounter.next()},

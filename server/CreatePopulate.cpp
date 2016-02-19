@@ -67,21 +67,43 @@ struct TableCreator<Transaction> {
 
     void setPrimaryKey(const std::vector<std::string>& fieldNames) {
         // we do not explicitely set the primary key on tell, but we misuse the
-        // function here to create an additional index and counter for lineitem
-        // and orders
-        if (fieldNames[0][0] == 'o') {
+        // function here to create addtional counters for all tables as well as
+        // an additional index for lineitem and orders
+        char firstChar = fieldNames[0][0];
+        switch (firstChar) {
+        case 'p':
+            if (fieldNames[0][1] == 's') {
+                tx.createCounter("partsupp_counter");
+            } else {
+                tx.createCounter("part_counter");
+            }
+            break;
+        case 's':
+            tx.createCounter("supplier_counter");
+            break;
+        case 'c':
+            tx.createCounter("customer_counter");
+            break;
+        case 'o':
             schema.addIndex("o_orderkey_idx",
-                    std::make_pair(true, std::vector<tell::store::Schema::id_t>{
-                         schema.idOf("o_orderkey")
-                    }));
-            tx.createCounter("order_idx_counter");
-        }
-        if (fieldNames[0][0] == 'l') {
+                std::make_pair(true, std::vector<tell::store::Schema::id_t>{
+                    schema.idOf("o_orderkey")
+                }));
+            tx.createCounter("orders_counter");
+            break; 
+        case 'l':
             schema.addIndex("l_orderkey_idx",
                     std::make_pair(false, std::vector<tell::store::Schema::id_t>{
                          schema.idOf("l_orderkey")
                     }));
-            tx.createCounter("lineitem_idx_counter");
+            tx.createCounter("lineitem_counter");
+            break;
+        case 'n':
+            tx.createCounter("nation_counter");
+            break;
+        case 'r':
+            tx.createCounter("region_counter");
+            break;
         }
     }
 };
@@ -91,16 +113,11 @@ struct Populator<Transaction> {
     Transaction& tx;
     std::unordered_map<crossbow::string, Field> fields;
     tell::db::table_t tableId;
-    const bool isOrderTable;
-    const bool isLineitemTable;
     std::unique_ptr<Counter> counter;
 
     Populator(Transaction& tx, const crossbow::string& name)
         : tx(tx)
-        , isOrderTable(name == "orders")
-        , isLineitemTable(name == "lineitem")
-        , counter(isOrderTable ? new Counter (tx.getCounter("order_idx_counter")) :
-                (isLineitemTable ? new Counter (tx.getCounter("lineitem_idx_counter")) : nullptr))
+        , counter(new Counter(tx.getCounter(name + "_counter")))
     {
         auto f = tx.openTable(name);
         tableId = f.get();
@@ -141,11 +158,8 @@ struct Populator<Transaction> {
         fields.emplace(std::forward<Str1>(name), std::forward<Str2>(val));
     }
 
-    void apply(uint64_t key) {
-        if (isOrderTable || isLineitemTable)
-            tx.insert(tableId, tell::db::key_t{counter->next()}, fields);
-        else
-            tx.insert(tableId, tell::db::key_t{key}, fields);
+    void apply() {
+        tx.insert(tableId, tell::db::key_t{counter->next()}, fields);
         fields.clear();
     }
 
@@ -172,14 +186,14 @@ void DBGenBase<TellClient, TellFiber>::createSchema(TellClient& client, double s
 
 void DBGenBase<TellClient, TellFiber>::threaded_populate(TellClient &client,
         std::queue<TellFiber> &fibers,
-        std::string &tableName, const uint64_t &startKey, const std::shared_ptr<std::stringstream> &data) {
+        std::string &tableName, const std::shared_ptr<std::stringstream> data) {
     if (fibers.size() >= 28) {
         fibers.front().wait();
         fibers.pop();
     }
-    fibers.emplace(client->clientManager.startTransaction([&tableName, data, startKey] (tell::db::Transaction& tx) {
+    fibers.emplace(client->clientManager.startTransaction([&tableName, data] (tell::db::Transaction& tx) {
         Populate<tell::db::Transaction> populate(tx);
-        populateTable(tableName, startKey, data, populate);
+        populateTable(tableName, data, populate);
         tx.commit();
         std::cout << '.';
         std::cout.flush();
