@@ -456,7 +456,7 @@ struct DBGenerator : public DBGenBase<ClientType, FiberType> {
             while (true) {
                 auto data = std::make_shared<std::stringstream>();
                 uint64_t count = 0;
-                while (std::getline(in, line) && count < 10000) {
+                while (count < 10000 && std::getline(in, line)) {
                     *data << line << '\n';
                     ++count;
                     assert(!(line.empty()));
